@@ -1,0 +1,15 @@
+
+aiofiles
+fastapi
+faster-whisper
+librosa
+loguru
+noisereduce
+numpy
+psutil
+pydantic
+pydantic-settings
+pyloudnorm
+python-multipart
+soundfile
+torch
