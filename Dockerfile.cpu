@@ -1,0 +1,50 @@
+# ===============================
+# 1. Base runtime image
+# ===============================
+FROM python:3.11-slim-bookworm
+
+# Prevent python from writing pyc files
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Reduce image size
+ENV PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# ===============================
+# 2. Install only required system deps
+# ===============================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ===============================
+# 3. Install Python dependencies
+# ===============================
+COPY requirements.txt .
+
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# ===============================
+# 4. Copy only application code
+# ===============================
+COPY app ./app
+
+# ===============================
+# 5. Create non-root user (security)
+# ===============================
+RUN useradd -m appuser
+USER appuser
+
+# ===============================
+# 6. Production server
+# ===============================
+ENV COMPUTE_DEVICE=cpu
+
+CMD ["python", "-m", "uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1"]

@@ -1,11 +1,10 @@
-
 aiofiles
 fastapi
 faster-whisper
 librosa
 loguru
 noisereduce
-numpy
+numpy<2.4
 psutil
 pydantic
 pydantic-settings
@@ -13,3 +12,4 @@ pyloudnorm
 python-multipart
 soundfile
 torch
+uvicorn
