@@ -49,8 +49,10 @@ def load_audio(file_path: str) -> tuple[np.ndarray, int]:
         return audio, sr
 
     finally:
-        if os.path.exists(file_path):
+        try:
             os.unlink(file_path)
+        except FileNotFoundError:
+            pass
 
 
 def run_preprocessing_pipeline(
