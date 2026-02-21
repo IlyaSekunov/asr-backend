@@ -75,6 +75,6 @@ def extract_filename(file_path: str, include_extension: bool = True) -> str:
     filename = os.path.basename(file_path)
 
     if not include_extension:
-        filename = os.path.splitext(filename_with_ext)[0]
+        filename = os.path.splitext(filename)[0]
 
     return filename
