@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: speech-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - audio_data:/shared/audio
+    environment:
+      - COMPUTE_DEVICE=cpu
+    restart: unless-stopped
+
+volumes:
+  audio_data:

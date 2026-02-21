@@ -1,10 +1,11 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Union
+
+from app.core.config import settings
 
 
-def save_audio_bytes(audio_file: bytes, output_dir: Union[str, Path] = "temp_audio") -> str:
+def save_audio_bytes(audio_file: bytes, original_filename: str) -> str:
     """
     Save audio bytes to a temporary file on disk.
 
@@ -13,7 +14,7 @@ def save_audio_bytes(audio_file: bytes, output_dir: Union[str, Path] = "temp_aud
 
     Args:
         audio_file: Raw audio data as bytes (e.g., from an uploaded MP3 or WAV file)
-        output_dir: Directory where the file will be saved (default: "temp_audio")
+        original_filename: Name of uploaded audio file
 
     Returns:
         str: Absolute path to the saved file
@@ -26,12 +27,12 @@ def save_audio_bytes(audio_file: bytes, output_dir: Union[str, Path] = "temp_aud
         raise ValueError("Audio file bytes cannot be empty")
 
     # Create output directory if it doesn't exist
-    output_path = Path(output_dir)
+    output_path = Path(settings.AUDIO_STORAGE_DIR)
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Generate unique filename to avoid collisions
     # Using UUID ensures uniqueness even with concurrent requests
-    filename = f"{uuid.uuid4()}.audio"
+    filename = f"{original_filename}_{uuid.uuid4()}"
     file_path = output_path / filename
 
     try:

@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     QUANTIZATION: Quantization = Quantization.INT8
     COMPUTE_DEVICE: ComputeDevice = ComputeDevice.CPU
 
+    # ── Storage ─────────────────────────────────────────────────────────────────
+    AUDIO_STORAGE_DIR: str = "/shared/audio"
+
     VAD_ENABLED: bool = True
 
     DENOISING_ENABLED: bool = True
