@@ -18,7 +18,7 @@ from app.schemas.transcription import (
     TranscriptionResponse,
 )
 from app.services.asr_pipeline import asr_pipeline
-from app.util.io import save_audio_bytes, load_audio, extract_filename
+from app.util.io import save_audio_bytes, load_audio, extract_filename, delete_file
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
 
@@ -98,6 +98,9 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionResponse:
             extract_filename(file_path),
             len(audio) / settings.TARGET_SAMPLE_RATE,
         )
+
+        # Delete processed file
+        delete_file(file_path)
 
         # Transcribe with pipeline
         result = asr_pipeline.transcribe(audio)
