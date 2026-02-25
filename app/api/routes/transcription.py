@@ -12,14 +12,13 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from loguru import logger
 
-from app.core.config import settings
+from app.config import settings
 from app.schemas.transcription import (
     ErrorResponse,
     TranscriptionResponse,
 )
-from app.services.asr import transcribe
-from app.services.audio import load_audio, run_preprocessing_pipeline
-from app.util.io import save_audio_bytes
+from app.services.asr_pipeline import asr_pipeline
+from app.util.io import save_audio_bytes, load_audio, extract_filename
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
 
@@ -91,9 +90,17 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionResponse:
 
     try:
         file_path = save_audio_bytes(file_bytes, filename)
-        audio, sr = load_audio(file_path)
-        audio = run_preprocessing_pipeline(audio, sr)
-        result = transcribe(audio)
+
+        # Load Audio
+        audio = load_audio(file_path)
+        logger.debug(
+            "Loaded audio | file={} duration={:.2f}s",
+            extract_filename(file_path),
+            len(audio) / settings.TARGET_SAMPLE_RATE,
+        )
+
+        # Transcribe with pipeline
+        result = asr_pipeline.transcribe(audio)
     except Exception as exc:
         logger.exception("Transcription pipeline failed | file={}", filename)
         raise HTTPException(
