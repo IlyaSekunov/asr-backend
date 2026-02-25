@@ -1,0 +1,62 @@
+# ===============================
+# 1. Base runtime image (CUDA)
+# ===============================
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# ===============================
+# 2. Install Python + system deps
+# ===============================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Make python3 default
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# ===============================
+# 3. Upgrade pip correctly
+# ===============================
+RUN python -m pip install --upgrade pip
+
+# ===============================
+# 4. Install torch CUDA build FIRST
+# ===============================
+RUN python -m pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+# ===============================
+# 5. Install other dependencies
+# ===============================
+COPY requirements.txt .
+RUN python -m pip install --no-cache-dir -r requirements.txt
+
+# ===============================
+# 6. Copy app
+# ===============================
+COPY app ./app
+
+# ===============================
+# 7. Non-root user
+# ===============================
+RUN useradd -m appuser \
+    && mkdir -p /shared/audio \
+    && chown -R appuser:appuser /app \
+    && chown -R appuser:appuser /shared
+
+USER appuser
+
+ENV COMPUTE_DEVICE=cuda
+
+CMD ["python", "-m", "uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1"]

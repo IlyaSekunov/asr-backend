@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      dockerfile: Dockerfile.gpu
+    environment:
+      - COMPUTE_DEVICE=cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
