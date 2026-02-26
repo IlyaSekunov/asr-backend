@@ -17,7 +17,7 @@ from loguru import logger
 
 from app.api.routes.transcription import router as transcription_router
 from app.config import settings
-from app.asr_models.whisper_transcriber import asr_whisper_lifespan
+from app.transcribers.whisper_transcriber import asr_whisper_lifespan
 
 
 def _configure_logging() -> None:

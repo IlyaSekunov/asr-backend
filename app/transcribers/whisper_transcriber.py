@@ -5,24 +5,6 @@ This module provides a production-ready Automatic Speech Recognition (ASR) servi
 using the Faster-Whisper implementation. It implements a singleton pattern to ensure
 the heavy Whisper model is loaded only once per process, regardless of the number
 of requests or concurrent users.
-
-Key features:
-    - Lazy model initialization via FastAPI lifespan context
-    - Singleton model instance shared across all requests
-    - Configurable model size, device, and quantization
-    - Optional VAD (Voice Activity Detection) filtering
-    - Integration with the AudioTranscriber interface
-
-The module is designed for high-performance inference in web services, with proper
-resource management and logging throughout the model lifecycle.
-
-Typical usage:
-    # In FastAPI app initialization
-    app.router.lifespan_context = asr_whisper_lifespan
-
-    # In request handlers
-    transcriber = WhisperTranscriber()
-    result = transcriber.transcribe(audio_array)
 """
 
 from __future__ import annotations
@@ -35,8 +17,8 @@ from fastapi import FastAPI
 from faster_whisper import WhisperModel
 from loguru import logger
 
-from app.asr_models.audio_transcriber import AudioTranscriber
-from app.asr_models.transcription_result import TranscriptionResult
+from app.transcribers.audio_transcriber import AudioTranscriber
+from app.transcribers.transcription_result import TranscriptionResult
 from app.config import settings
 
 # Global model cache for singleton pattern
@@ -62,11 +44,6 @@ def _get_asr_whisper() -> WhisperModel:
     RuntimeError
         If the model hasn't been loaded yet via the lifespan context.
         This indicates a lifecycle management issue in the application.
-
-    Notes
-    -----
-    The function uses a dictionary cache to allow for future extension to
-    multiple model variants while maintaining a simple singleton interface.
     """
     if "whisper_model" not in _whisper_model:
         error_msg = (
@@ -91,30 +68,6 @@ async def asr_whisper_lifespan(app: FastAPI):
 
     The model is loaded once at application startup and shared across all
     requests, preventing repeated expensive loading operations.
-
-    Parameters
-    ----------
-    app : FastAPI
-        The FastAPI application instance (required by lifespan protocol).
-
-    Yields
-    ------
-    None
-        Control returns to FastAPI while the model remains loaded.
-
-    Configuration
-    -------------
-    The following settings from `app.core.config` control model loading:
-        - MODEL_SIZE: Whisper model size (tiny, base, small, medium, large)
-        - COMPUTE_DEVICE: CPU or CUDA device specification
-        - QUANTIZATION: Compute type (float16, int8_float16, etc.)
-
-    Logging
-    -------
-    Provides detailed logs at each lifecycle stage:
-        - INFO: Model loading started with configuration
-        - INFO: Model loaded successfully
-        - ERROR: Any loading failures (will be raised)
     """
     logger.info(
         "Loading Whisper model | size={} device={} compute_type={}",
@@ -145,55 +98,15 @@ async def asr_whisper_lifespan(app: FastAPI):
 
 class WhisperTranscriber(AudioTranscriber):
     """
-    Concrete implementation of AudioTranscriber using Faster-Whisper.
+    Implementation of AudioTranscriber using Faster-Whisper.
 
     This transcriber provides speech-to-text functionality using the
     Faster-Whisper optimized implementation of OpenAI's Whisper models.
     It leverages the singleton model instance managed by the lifespan
     context for efficient resource usage.
-
-    The transcriber supports:
-        - Multiple model sizes via configuration
-        - CPU/GPU inference with quantization
-        - Optional VAD filtering for improved accuracy
-        - Language detection with confidence scoring
-
-    Attributes
-    ----------
-    model : WhisperModel
-        Reference to the singleton Whisper model instance.
-        Automatically retrieved via _get_asr_whisper().
-
-    Notes
-    -----
-    This class is designed to be instantiated per request while sharing
-    the underlying model instance. This provides optimal memory usage
-    while maintaining thread safety for concurrent requests.
-
-    See Also
-    --------
-    AudioTranscriber : The abstract base class this implements
-    TranscriptionResult : The structured output format
     """
 
     def __init__(self, vad_enabled: bool = settings.VAD_ENABLED):
-        """
-        Initialize the Whisper transcriber with the shared model instance.
-
-        The constructor retrieves the singleton model instance that was
-        loaded during application startup. This ensures all transcriber
-        instances share the same underlying model.
-
-        Parameters
-        ----------
-        vad_enabled : bool, optional
-        Ensures whether VAD functionality is enabled or not.
-
-        Raises
-        ------
-        RuntimeError
-            If the model hasn't been loaded yet (lifespan not run).
-        """
         self._model = None
         self.vad_enabled = vad_enabled
 
@@ -231,7 +144,6 @@ class WhisperTranscriber(AudioTranscriber):
             Pre-processed mono audio waveform. Expected format:
             - Sample rate: 16 kHz (min required by Whisper)
             - Data type: float32
-            - Value range: [-1.0, 1.0]
             - Shape: (n_samples,) for mono audio
 
         Returns

@@ -8,10 +8,6 @@ class, which integrates with the AudioPreprocessor inheritance hierarchy.
 
 The module is configured via application settings and produces denoised audio
 suitable for downstream tasks like transcription or feature extraction.
-
-Typical usage:
-    reducer = NoiseReducer(sr=16000, stationary=True)
-    denoised = reducer.process(noisy_audio)
 """
 
 import numpy as np

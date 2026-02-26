@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from app.asr_models.transcription_result import TranscriptionResult
+from app.transcribers.transcription_result import TranscriptionResult
 
 
 class AudioTranscriber(ABC):
@@ -16,10 +16,6 @@ class AudioTranscriber(ABC):
     The class follows the Strategy pattern, allowing different transcription
     engines to be swapped seamlessly while maintaining a consistent interface
     for the rest of the application.
-
-    See Also
-    --------
-    WhisperTranscriber : Implementation using OpenAI's Whisper model
     """
 
     @abstractmethod
@@ -31,7 +27,6 @@ class AudioTranscriber(ABC):
         ----------
         audio : np.ndarray
             Audio time series to transcribe. Expected format:
-            - Values normalized to [-1.0, 1.0] range
             - Shape can be (n_samples,) for mono or (n_channels, n_samples)
               for multi-channel audio
             - dtype should be float32 or float64

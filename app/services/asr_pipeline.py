@@ -14,9 +14,9 @@ from typing import List
 import numpy as np
 from loguru import logger
 
-from app.asr_models.audio_transcriber import AudioTranscriber
-from app.asr_models.transcription_result import TranscriptionResult
-from app.asr_models.whisper_transcriber import WhisperTranscriber
+from app.transcribers.audio_transcriber import AudioTranscriber
+from app.transcribers.transcription_result import TranscriptionResult
+from app.transcribers.whisper_transcriber import WhisperTranscriber
 from app.config import settings
 from app.preprocessing.audio_preprocessor import AudioPreprocessor
 from app.preprocessing.loudness_normalizer import LoudnessNormalizer

@@ -8,8 +8,7 @@ class TranscriptionResult:
 
     This dataclass encapsulates the complete result of a speech-to-text
     transcription, including the transcribed text, detected language,
-    and confidence metrics. Being frozen (immutable) ensures the result
-    remains consistent throughout processing pipelines.
+    and confidence metrics.
 
     Attributes
     ----------

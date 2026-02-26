@@ -36,17 +36,14 @@ class LoudnessNormalization(str, Enum):
 
 
 class Settings(BaseSettings):
-    # ── Application ──────────────────────────────────────────────────────────
     APP_TITLE: str = "Speech Processing API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
-    # ── Model ─────────────────────────────────────────────────────────────────
     MODEL_SIZE: WhisperModelSize = WhisperModelSize.LARGE_V3
     QUANTIZATION: Quantization = Quantization.INT8
     COMPUTE_DEVICE: ComputeDevice = ComputeDevice.CPU
 
-    # ── Storage ─────────────────────────────────────────────────────────────────
     AUDIO_STORAGE_DIR: str = "/shared/audio"
 
     VAD_ENABLED: bool = True
