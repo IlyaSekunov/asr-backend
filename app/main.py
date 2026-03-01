@@ -9,7 +9,6 @@ Import ``app`` from this module to run with Uvicorn:
 from __future__ import annotations
 
 import sys
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +16,6 @@ from loguru import logger
 
 from app.api.routes.transcription import router as transcription_router
 from app.config import settings
-from app.transcribers.whisper_transcriber import asr_whisper_lifespan
 
 
 def _configure_logging() -> None:
@@ -33,12 +31,6 @@ def _configure_logging() -> None:
         serialize=not settings.DEBUG,  # JSON in production, human-readable locally
         colorize=settings.DEBUG,
     )
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with asr_whisper_lifespan(app):
-        yield
 
 
 def create_app() -> FastAPI:
@@ -58,7 +50,6 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title=settings.APP_TITLE,
         version=settings.APP_VERSION,
-        lifespan=lifespan,
     )
 
     application.add_middleware(

@@ -5,7 +5,7 @@ All tuneable constants and environment-driven settings live here.
 
 from enum import Enum
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ComputeDevice(str, Enum):
@@ -36,33 +36,36 @@ class LoudnessNormalization(str, Enum):
 
 
 class Settings(BaseSettings):
+    # General
+    ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".mp3", ".wav"})
     APP_TITLE: str = "Speech Processing API"
     APP_VERSION: str = "0.1.0"
+    AUDIO_STORAGE_DIR: str = "/shared/audio"
     DEBUG: bool = False
 
-    MODEL_SIZE: WhisperModelSize = WhisperModelSize.LARGE_V3
-    QUANTIZATION: Quantization = Quantization.INT8
+    # Model
     COMPUTE_DEVICE: ComputeDevice = ComputeDevice.CPU
-
-    AUDIO_STORAGE_DIR: str = "/shared/audio"
-
-    VAD_ENABLED: bool = True
-
-    DENOISING_ENABLED: bool = True
     DENOISE_PROP_DECREASE: float = 0.9
     DENOISE_STATIONARY: bool = True
-
-    LOUDNESS_NORMALIZATION_ENABLED: bool = True
+    DENOISING_ENABLED: bool = True
     LOUDNESS_METHOD: LoudnessNormalization = LoudnessNormalization.LUFS
+    LOUDNESS_NORMALIZATION_ENABLED: bool = True
     LOUDNESS_TARGET: float = -23.0
-
+    MODEL_SIZE: WhisperModelSize = WhisperModelSize.SMALL
+    QUANTIZATION: Quantization = Quantization.INT8
     TARGET_SAMPLE_RATE: int = 22_050
+    VAD_ENABLED: bool = True
 
-    ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".mp3", ".wav"})
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_QUEUE: str = "asr"
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
 
 
 settings = Settings()

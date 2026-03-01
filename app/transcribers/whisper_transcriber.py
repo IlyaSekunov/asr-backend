@@ -9,91 +9,13 @@ of requests or concurrent users.
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from typing import Dict
-
 import numpy as np
-from fastapi import FastAPI
 from faster_whisper import WhisperModel
 from loguru import logger
 
+from app.config import settings
 from app.transcribers.audio_transcriber import AudioTranscriber
 from app.transcribers.transcription_result import TranscriptionResult
-from app.config import settings
-
-# Global model cache for singleton pattern
-# Using a dictionary allows for potential future extension to multiple models
-_whisper_model: Dict[str, WhisperModel] = {}
-
-
-def _get_asr_whisper() -> WhisperModel:
-    """
-    Retrieve the singleton Whisper model instance.
-
-    This internal function provides access to the globally cached Whisper model.
-    It ensures the model has been properly initialized before use, raising an
-    exception if accessed before lifespan setup.
-
-    Returns
-    -------
-    WhisperModel
-        The loaded Faster-Whisper model instance.
-
-    Raises
-    ------
-    RuntimeError
-        If the model hasn't been loaded yet via the lifespan context.
-        This indicates a lifecycle management issue in the application.
-    """
-    if "whisper_model" not in _whisper_model:
-        error_msg = (
-            "ASR Whisper model accessed before initialization. "
-            "Ensure asr_whisper_lifespan context manager is properly configured."
-        )
-        logger.error(error_msg)
-        raise RuntimeError(error_msg)
-
-    return _whisper_model["whisper_model"]
-
-
-@asynccontextmanager
-async def asr_whisper_lifespan(app: FastAPI):
-    """
-    FastAPI lifespan context manager for Whisper model lifecycle.
-
-    This context manager handles the complete lifecycle of the Whisper model:
-        - Startup: Loads the model with configured parameters
-        - Runtime: Keeps model available for requests
-        - Shutdown: (Optional) Cleans up resources when application stops
-
-    The model is loaded once at application startup and shared across all
-    requests, preventing repeated expensive loading operations.
-    """
-    logger.info(
-        "Loading Whisper model | size={} device={} compute_type={}",
-        settings.MODEL_SIZE.value,
-        settings.COMPUTE_DEVICE.value,
-        settings.QUANTIZATION.value,
-    )
-
-    try:
-        model = WhisperModel(
-            settings.MODEL_SIZE.value,
-            device=settings.COMPUTE_DEVICE.value,
-            compute_type=settings.QUANTIZATION.value,
-        )
-        _whisper_model["whisper_model"] = model
-        logger.info("Whisper model loaded successfully.")
-
-        yield
-
-    except Exception as e:
-        logger.error(f"Failed to load Whisper model: {e}")
-        raise
-    finally:
-        # Optional cleanup can be added here if needed
-        # e.g., model unload, GPU memory cleanup
-        logger.debug("Whisper model lifecycle ended.")
 
 
 class WhisperTranscriber(AudioTranscriber):
@@ -106,28 +28,29 @@ class WhisperTranscriber(AudioTranscriber):
     context for efficient resource usage.
     """
 
-    def __init__(self, vad_enabled: bool = settings.VAD_ENABLED):
-        self._model = None
-        self.vad_enabled = vad_enabled
+    def __init__(
+            self,
+            model_size: str = settings.MODEL_SIZE.value,
+            device: str = settings.COMPUTE_DEVICE.value,
+            quantization: str = settings.QUANTIZATION.value,
+            vad_enabled: bool = settings.VAD_ENABLED,
+    ):
+        logger.info("Initializing WhisperTranscriber")
+        logger.info(
+            "Loading Whisper model | size={} device={} compute_type={}",
+            model_size,
+            device,
+            quantization,
+        )
 
-    @property
-    def model(self) -> WhisperModel:
-        """
-        Lazy-load the Whisper model when first accessed.
+        self._model = WhisperModel(
+            model_size_or_path=model_size,
+            device=device,
+            compute_type=quantization,
+        )
+        self._vad_enabled = vad_enabled
 
-        Returns
-        -------
-        WhisperModel
-            The singleton Whisper model instance.
-
-        Raises
-        ------
-        RuntimeError
-            If model hasn't been loaded via lifespan context.
-        """
-        if self._model is None:
-            self._model = _get_asr_whisper()
-        return self._model
+        logger.info("Whisper model loaded successfully.")
 
     def transcribe(self, audio: np.ndarray) -> TranscriptionResult:
         """
@@ -155,9 +78,9 @@ class WhisperTranscriber(AudioTranscriber):
             - language_probability: Confidence score (0.0 to 1.0)
         """
         # Run transcription with optional VAD filtering
-        segments, info = self.model.transcribe(
+        segments, info = self._model.transcribe(
             audio,
-            vad_filter=settings.VAD_ENABLED,
+            vad_filter=self._vad_enabled,
         )
 
         # Combine all segments into complete transcript

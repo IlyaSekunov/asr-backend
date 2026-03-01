@@ -11,3 +11,17 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  worker:
+    build:
+      dockerfile: Dockerfile.gpu
+    command: rq worker asr
+    environment:
+      - COMPUTE_DEVICE=cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

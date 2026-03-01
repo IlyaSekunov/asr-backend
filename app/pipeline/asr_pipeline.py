@@ -14,13 +14,12 @@ from typing import List
 import numpy as np
 from loguru import logger
 
-from app.transcribers.audio_transcriber import AudioTranscriber
-from app.transcribers.transcription_result import TranscriptionResult
-from app.transcribers.whisper_transcriber import WhisperTranscriber
-from app.config import settings
 from app.preprocessing.audio_preprocessor import AudioPreprocessor
 from app.preprocessing.loudness_normalizer import LoudnessNormalizer
 from app.preprocessing.noise_reducer import NoiseReducer
+from app.transcribers.audio_transcriber import AudioTranscriber
+from app.transcribers.transcription_result import TranscriptionResult
+from app.transcribers.whisper_transcriber import WhisperTranscriber
 
 
 class AsrPipeline:
@@ -62,7 +61,7 @@ class AsrPipeline:
     ...     preprocessors=[NoiseReducer()],
     ...     transcriber=WhisperTranscriber()
     ... )
-    >>> result = pipeline.process(audio)
+    >>> result = pipeline.transcribe(audio)
 
     >>> # Complex pipeline with multiple preprocessing steps
     >>> pipeline = AsrPipeline(
@@ -175,20 +174,3 @@ class AsrPipeline:
         )
 
         return result
-
-
-def _configure_preprocessors() -> List[AudioPreprocessor]:
-    preprocessors = []
-    if settings.LOUDNESS_NORMALIZATION_ENABLED:
-        preprocessors.append(LoudnessNormalizer())
-
-    if settings.DENOISING_ENABLED:
-        preprocessors.append(NoiseReducer())
-
-    return preprocessors
-
-
-asr_pipeline = AsrPipeline(
-    preprocessors=_configure_preprocessors(),
-    transcriber=WhisperTranscriber()
-)

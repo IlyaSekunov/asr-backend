@@ -12,6 +12,31 @@ services:
       - audio_data:/shared/audio
     environment:
       - COMPUTE_DEVICE=cpu
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: speech-worker
+    command: python -m app.asyncqueue.worker
+    volumes:
+      - audio_data:/shared/audio
+    environment:
+      - COMPUTE_DEVICE=cpu
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis
+    container_name: speech-redis
     restart: unless-stopped
 
 volumes:

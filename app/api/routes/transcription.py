@@ -7,18 +7,20 @@ pre-processing → ASR pipeline, and returns a structured transcript.
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from loguru import logger
+from rq.job import Job
 
+from app.asyncqueue.redis_queue import redis_queue, redis_connection
 from app.config import settings
 from app.schemas.transcription import (
     ErrorResponse,
-    TranscriptionResponse,
+    TranscriptionTaskResponse, TranscriptionTaskResultResponse, TaskStatus,
 )
-from app.services.asr_pipeline import asr_pipeline
-from app.util.io import save_audio_bytes, load_audio, extract_filename, delete_file
+from app.util.io import save_audio_bytes
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
 
@@ -50,36 +52,30 @@ def _validate_file_extension(file: UploadFile) -> None:
 
 @router.post(
     "/",
-    response_model=TranscriptionResponse,
+    response_model=TranscriptionTaskResponse,
     responses={
         400: {"model": ErrorResponse, "description": "Invalid file type or oversized upload."},
         500: {"model": ErrorResponse, "description": "Internal processing error."},
     },
     summary="Transcribe an audio file",
     description=(
-            "Upload a **.mp3** or **.wav** file. The server applies configurable "
-            "pre-processing (noise reduction, loudness normalization) and returns "
-            "a full transcript with per-segment timestamps."
+            "Upload a **.mp3** or **.wav** file. The server submit the transcription task "
+            "to async queue and returns a task_id which can be used to get a result of transcription"
     ),
 )
-async def transcribe_audio(file: UploadFile) -> TranscriptionResponse:
+async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
     """
-    Transcribe the uploaded audio file.
-
-    The endpoint is intentionally *synchronous* with respect to the ML work so
-    that it can be trivially wrapped in a Celery task later.  All heavy I/O
-    and compute happens inside synchronous functions; FastAPI's thread-pool
-    executor prevents the event loop from blocking.
+    Submit the transcription of audio file (.MP3 or .WAV) to async queue.
 
     Parameters
     ----------
     file:
-        Multipart-encoded audio file.
+        Multipart-encoded audio file (.MP3 or .WAV).
 
     Returns
     -------
-    TranscriptionResponse
-        Structured transcription with segments, language, and metadata.
+    TranscriptionTaskResponse
+        Contains automatically generated string task_id that can be used to get a result of transcription.
     """
     _validate_file_extension(file)
 
@@ -88,32 +84,60 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionResponse:
 
     logger.info("Received transcription request | file={} size={}B", filename, len(file_bytes))
 
-    try:
-        file_path = save_audio_bytes(file_bytes, filename)
+    task_id = str(uuid.uuid4())
+    file_path = save_audio_bytes(file_bytes, filename)
 
-        # Load Audio
-        audio = load_audio(file_path)
-        logger.debug(
-            "Loaded audio | file={} duration={:.2f}s",
-            extract_filename(file_path),
-            len(audio) / settings.TARGET_SAMPLE_RATE,
+    redis_queue.enqueue(
+        "app.asyncqueue.tasks.transcribe_task",
+        file_path,
+        job_id=task_id,
+        result_ttl=3600,
+        failure_ttl=3600,
+    )
+
+    return TranscriptionTaskResponse(task_id=task_id)
+
+
+@router.get(
+    "/{task_id}",
+    response_model=TranscriptionTaskResultResponse,
+    summary="Get transcription task result",
+    description=(
+            "'task_id' is used for pulling the result of the transcription task. "
+            "Possible task statuses: READY, FAILED, PENDING. "
+            "If status READY, additional field, which contains transcribed information, is provided."
+    ),
+)
+async def get_transcription_result(task_id: str) -> TranscriptionTaskResultResponse:
+    """
+    Returns current transcription task status.
+
+    If task is READY, returns transcription result and deletes task.
+    """
+
+    try:
+        job = Job.fetch(task_id, connection=redis_connection)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if job.is_finished:
+        result = job.return_value()
+        job.delete()
+
+        return TranscriptionTaskResultResponse(
+            status=TaskStatus.READY,
+            result=result,
         )
 
-        # Delete processed file
-        delete_file(file_path)
+    if job.is_failed:
+        job.delete()
 
-        # Transcribe with pipeline
-        result = asr_pipeline.transcribe(audio)
-    except Exception as exc:
-        logger.exception("Transcription pipeline failed | file={}", filename)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Processing failed: {exc}",
-        ) from exc
+        return TranscriptionTaskResultResponse(
+            status=TaskStatus.FAILED,
+            result=None,
+        )
 
-    return TranscriptionResponse(
-        filename=filename,
-        language=result.language,
-        language_probability=result.language_probability,
-        full_text=result.text,
+    return TranscriptionTaskResultResponse(
+        status=TaskStatus.PENDING,
+        result=None,
     )
