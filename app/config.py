@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # General
     ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".mp3", ".wav"})
     APP_TITLE: str = "Speech Processing API"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "1.0.0"
     AUDIO_STORAGE_DIR: str = "/shared/audio"
     DEBUG: bool = False
 
@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_QUEUE: str = "asr"
+    REDIS_QUEUE_RESULT_TTL: int = 300
+    REDIS_QUEUE_FAILURE_TTL: int = 300
+    TRANSCRIBE_FUNCTION_TASK_PATH: str = "app.asyncqueue.tasks.transcribe_task"
 
     model_config = SettingsConfigDict(
         env_file='.env',

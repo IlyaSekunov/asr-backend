@@ -13,9 +13,10 @@ from app.transcribers.transcription_result import TranscriptionResult
 
 
 class TaskStatus(str, Enum):
-    PENDING = "PENDING"
     READY = "READY"
+    QUEUED = "QUEUED"
     FAILED = "FAILED"
+    STARTED = "STARTED"
 
 
 class TranscriptionTaskResponse(BaseModel):
