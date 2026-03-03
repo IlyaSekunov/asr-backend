@@ -1,88 +1,63 @@
 import os
-import uuid
 from pathlib import Path
 
+import aiofiles
 import librosa
 import numpy as np
+from fastapi import UploadFile
 from loguru import logger
 
 from app.config import settings
 
 
-def save_audio_bytes(audio_file: bytes, original_filename: str) -> str:
+async def save_audio_stream(file: UploadFile, task_id: str) -> str:
     """
-    Save audio bytes to a temporary file on disk.
+    Stream an uploaded audio file to disk without loading it fully into memory.
 
-    This function creates a unique filename, ensures the output directory exists,
-    and writes the audio bytes to a file. Returns the path to the saved file.
+    Writes data in 512 KB chunks to a temporary file, then atomically renames
+    it to the final path. This ensures the worker never reads a partially
+    written file — it only sees the file after the rename completes.
 
-    Args:
-        audio_file: Raw audio data as bytes (e.g., from an uploaded MP3 or WAV file)
-        original_filename: Name of uploaded audio file
+    Parameters
+    ----------
+    file : UploadFile
+        Incoming multipart file from FastAPI.
+    task_id : str
+        Unique task identifier used as part of the final filename
+        to avoid collisions between concurrent uploads.
 
-    Returns:
-        str: Absolute path to the saved file
+    Returns
+    -------
+    str
+        Absolute path to the saved audio file.
 
-    Raises:
-        ValueError: If audio_file is empty
-        IOError: If file writing fails
+    Raises
+    ------
+    IOError
+        If writing fails for any reason. The temporary file is cleaned
+        up automatically before the exception is re-raised.
     """
-    if not audio_file:
-        raise ValueError("Audio file bytes cannot be empty")
-
-    # Create output directory if it doesn't exist
     output_path = Path(settings.AUDIO_STORAGE_DIR)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Generate unique filename to avoid collisions
-    # Using UUID ensures uniqueness even with concurrent requests
-    filename = f"{original_filename}_{uuid.uuid4()}"
-    file_path = output_path / filename
+    safe_name = Path(file.filename).name
+    final_path = output_path / f"{safe_name}_{task_id}"
+    tmp_path = final_path.with_suffix(".tmp")
 
     try:
-        # Write bytes to file
-        with open(file_path, 'wb') as f:
-            f.write(audio_file)
-            f.flush()  # Ensure data is written to disk
-            os.fsync(f.fileno())  # Force write to disk (optional, for extra safety)
+        async with aiofiles.open(tmp_path, "wb") as f:
+            while chunk := await file.read(512 * 1024):
+                await f.write(chunk)
 
-        return str(file_path.absolute())
+        # Atomic rename: the final path becomes visible to the worker
+        # only after the file is fully written.
+        os.rename(tmp_path, final_path)
+        return str(final_path.absolute())
 
-    except IOError as e:
-        # Clean up if file was partially created
-        if file_path.exists():
-            file_path.unlink()
+    except Exception as e:
+        if tmp_path.exists():
+            tmp_path.unlink()
         raise IOError(f"Failed to write audio file: {e}")
-
-
-def extract_filename(file_path: str, include_extension: bool = True) -> str:
-    """
-    Extract filename from an absolute file path.
-
-    This function takes a full file path and returns just the filename.
-    It works cross-platform (Windows, Linux, macOS) and handles various edge cases.
-
-    Args:
-        file_path: Absolute or relative path to a file
-        include_extension: If True, returns filename with extension.
-                          If False, returns filename without extension.
-
-    Returns:
-        str: Extracted filename
-
-    Raises:
-        ValueError: If the path is empty or invalid
-    """
-    # Validate input
-    if not file_path or not isinstance(file_path, str):
-        raise ValueError("File path must be a non-empty string")
-
-    filename = os.path.basename(file_path)
-
-    if not include_extension:
-        filename = os.path.splitext(filename)[0]
-
-    return filename
 
 
 def load_audio(file_path: str) -> np.ndarray:

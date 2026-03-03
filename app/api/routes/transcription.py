@@ -19,7 +19,8 @@ from app.schemas.transcription import (
     ErrorResponse,
     TranscriptionTaskResponse, TranscriptionTaskResultResponse, TaskStatus,
 )
-from app.util.io import save_audio_bytes
+from app.util.io import save_audio_stream
+from app.util.tasks import generate_task_id
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
 
@@ -53,39 +54,57 @@ def _validate_file_extension(file: UploadFile) -> None:
     "/",
     response_model=TranscriptionTaskResponse,
     responses={
-        400: {"model": ErrorResponse, "description": "Invalid file type or oversized upload."},
-        500: {"model": ErrorResponse, "description": "Internal error."},
+        400: {"model": ErrorResponse, "description": "Invalid file type or empty file."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
     },
-    summary="Send transcribe task to a queue",
+    summary="Submit an audio file for transcription",
     description=(
-            "Upload a **.mp3** or **.wav** file. The server submit the transcription task "
-            "to async queue and returns a task_id which can be used to get a result of transcription"
+        "Upload a **.mp3** or **.wav** file. The file is streamed to disk and a "
+        "transcription task is placed on the async queue. Returns a `task_id` "
+        "that can be used to poll for the result."
     ),
 )
 async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
     """
-    Submit the transcription of audio file (.MP3 or .WAV) to async queue.
+    Accept an audio file upload and enqueue it for transcription.
+
+    The file is streamed to disk in chunks to avoid loading it fully into
+    memory. The transcription itself is handled asynchronously by a worker —
+    use GET /transcribe/{task_id} to poll for the result.
 
     Parameters
     ----------
-    file:
-        Multipart-encoded audio file (.MP3 or .WAV).
+    file : UploadFile
+        Multipart-encoded audio file (.mp3 or .wav).
 
     Returns
     -------
     TranscriptionTaskResponse
-        Contains automatically generated string task_id that can be used to get a result of transcription.
+        Contains the `task_id` assigned to this transcription job.
+
+    Raises
+    ------
+    HTTPException
+        400 if the file type is unsupported or the file is empty.
+        500 if saving the file to disk fails.
     """
     _validate_file_extension(file)
 
-    file_bytes = await file.read()
-    filename = file.filename
+    if not file.size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Audio file cannot be empty"
+        )
 
-    logger.info("Received transcription request | file={} size={}B", filename, len(file_bytes))
+    logger.info("Received transcription request | file={}", file.filename)
 
-    file_path = save_audio_bytes(file_bytes, filename)
-    task_id = enqueue_transcription_task(file_path)
+    task_id = generate_task_id()
+    try:
+        file_path = await save_audio_stream(file, task_id)
+    except IOError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+    enqueue_transcription_task(file_path, task_id)
     return TranscriptionTaskResponse(task_id=task_id)
 
 

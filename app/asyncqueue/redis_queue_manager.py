@@ -5,7 +5,6 @@ from app.asyncqueue.redis_queue import redis_connection, redis_queue
 from app.config import settings
 from app.schemas.transcription import TaskStatus
 from app.transcribers.transcription_result import TranscriptionResult
-from app.util.tasks import generate_task_id
 
 
 def _map_job_status(status: JobStatus) -> TaskStatus:
@@ -45,8 +44,7 @@ def delete_job(job_id: str) -> None:
     job.delete()
 
 
-def enqueue_transcription_task(file_to_audio: str) -> str:
-    task_id = generate_task_id()
+def enqueue_transcription_task(file_to_audio: str, task_id: str) -> None:
     redis_queue.enqueue(
         settings.TRANSCRIBE_FUNCTION_TASK_PATH,
         file_to_audio,
@@ -54,4 +52,3 @@ def enqueue_transcription_task(file_to_audio: str) -> str:
         result_ttl=settings.REDIS_QUEUE_RESULT_TTL,
         failure_ttl=settings.REDIS_QUEUE_FAILURE_TTL,
     )
-    return task_id
