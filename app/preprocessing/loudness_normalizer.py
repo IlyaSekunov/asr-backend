@@ -121,9 +121,9 @@ class LoudnessNormalizer(AudioPreprocessor):
             return audio
 
         # Apply selected normalization method
-        if self.method is LoudnessNormalization.LUFS:
+        if self.method == LoudnessNormalization.LUFS:
             audio_normalized = self._lufs_normalize(audio)
-        elif self.method is LoudnessNormalization.PEAK:
+        elif self.method == LoudnessNormalization.PEAK:
             audio_normalized = self._peak_normalize(audio)
         elif self.method == LoudnessNormalization.RMS:
             audio_normalized = self._rms_normalize(audio)

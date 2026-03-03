@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     LOUDNESS_TARGET: float = -23.0
     MODEL_SIZE: WhisperModelSize = WhisperModelSize.SMALL
     QUANTIZATION: Quantization = Quantization.INT8
-    TARGET_SAMPLE_RATE: int = 22_050
+    TARGET_SAMPLE_RATE: int = 16_000
     VAD_ENABLED: bool = True
 
     # Redis
