@@ -1,11 +1,4 @@
-"""
-Faster-Whisper ASR service with singleton model lifecycle management.
-
-This module provides a production-ready Automatic Speech Recognition (ASR) service
-using the Faster-Whisper implementation. It implements a singleton pattern to ensure
-the heavy Whisper model is loaded only once per process, regardless of the number
-of requests or concurrent users.
-"""
+"""Faster-Whisper ASR transcriber with lazy singleton model loading."""
 
 from __future__ import annotations
 
@@ -20,12 +13,10 @@ from app.transcribers.transcription_result import TranscriptionResult
 
 class WhisperTranscriber(AudioTranscriber):
     """
-    Implementation of AudioTranscriber using Faster-Whisper.
+    AudioTranscriber implementation backed by Faster-Whisper.
 
-    This transcriber provides speech-to-text functionality using the
-    Faster-Whisper optimized implementation of OpenAI's Whisper models.
-    It leverages the singleton model instance managed by the lifespan
-    context for efficient resource usage.
+    The WhisperModel is loaded once on construction and reused across all
+    calls, so instantiate this class once per process.
     """
 
     def __init__(
@@ -35,7 +26,6 @@ class WhisperTranscriber(AudioTranscriber):
             quantization: str = settings.QUANTIZATION.value,
             vad_enabled: bool = settings.VAD_ENABLED,
     ):
-        logger.info("Initializing WhisperTranscriber")
         logger.info(
             "Loading Whisper model | size={} device={} compute_type={}",
             model_size,
@@ -54,43 +44,24 @@ class WhisperTranscriber(AudioTranscriber):
 
     def transcribe(self, audio: np.ndarray) -> TranscriptionResult:
         """
-        Transcribe speech audio using the Faster-Whisper model.
-
-        This method implements the AudioTranscriber interface, converting
-        raw audio waveform into structured transcription results. It applies
-        optional VAD filtering and returns both the transcribed text and
-        language information.
+        Transcribe a mono float32 waveform sampled at 16 kHz.
 
         Parameters
         ----------
         audio : np.ndarray
-            Pre-processed mono audio waveform. Expected format:
-            - Sample rate: 16 kHz (min required by Whisper)
-            - Data type: float32
-            - Shape: (n_samples,) for mono audio
+            Shape (n_samples,), dtype float32, sample rate 16 kHz.
 
         Returns
         -------
         TranscriptionResult
-            Structured result containing:
-            - text: Concatenated transcription from all segments
-            - language: Detected language code (ISO 639-1)
-            - language_probability: Confidence score (0.0 to 1.0)
+            Transcribed text, detected language code, and language confidence.
         """
-        # Run transcription with optional VAD filtering
-        segments, info = self._model.transcribe(
-            audio,
-            vad_filter=self._vad_enabled,
-        )
+        segments, info = self._model.transcribe(audio, vad_filter=self._vad_enabled)
 
-        # Combine all segments into complete transcript
-        hypothesis_text = "".join([segment.text for segment in segments])
+        text = "".join(segment.text for segment in segments)
 
-        # Create structured result
-        result = TranscriptionResult(
+        return TranscriptionResult(
             language=info.language,
             language_probability=info.language_probability,
-            text=hypothesis_text,
+            text=text,
         )
-
-        return result

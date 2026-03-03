@@ -1,6 +1,4 @@
-"""
-Pydantic schemas for the Transcription API endpoints.
-"""
+"""Pydantic schemas for the Transcription API endpoints."""
 
 from __future__ import annotations
 
@@ -15,20 +13,19 @@ from app.transcribers.transcription_result import TranscriptionResult
 class TaskStatus(str, Enum):
     READY = "READY"
     QUEUED = "QUEUED"
-    FAILED = "FAILED"
     STARTED = "STARTED"
+    FAILED = "FAILED"
 
 
 class TranscriptionTaskResponse(BaseModel):
-    task_id: str = Field(..., description="Unique identifier of the created transcription task.")
+    """Returned immediately after a file is uploaded and enqueued."""
+    task_id: str = Field(..., description="Unique identifier of the transcription task.")
 
 
 class TranscriptionTaskResultResponse(BaseModel):
-    status: TaskStatus = Field(..., description="Current execution status of the transcription task.")
-    result: Optional[TranscriptionResult] = Field(
-        None,
-        description="Transcription result. Present only when status is READY.",
-    )
+    """Returned when polling task status. `result` is populated only when READY."""
+    status: TaskStatus
+    result: Optional[TranscriptionResult] = None
 
 
 class ErrorResponse(BaseModel):

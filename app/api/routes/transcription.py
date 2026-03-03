@@ -1,8 +1,8 @@
 """
-Transcription endpoint.
+Transcription endpoints.
 
-POST /transcribe  — accepts an audio file (.mp3 or .wav), runs the full
-pre-processing → ASR pipeline, and returns a structured transcript.
+POST /transcribe/      — upload audio, enqueue transcription, return task_id.
+GET  /transcribe/{id}  — poll task status; result included when READY.
 """
 
 from __future__ import annotations
@@ -12,12 +12,19 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from loguru import logger
 
-from app.asyncqueue.redis_queue_manager import fetch_job_status, fetch_job_result, job_exists, \
-    enqueue_transcription_task
+from app.asyncqueue.redis_queue_manager import (
+    delete_job,
+    enqueue_transcription_task,
+    fetch_job_result,
+    fetch_job_status,
+    job_exists,
+)
 from app.config import settings
 from app.schemas.transcription import (
     ErrorResponse,
-    TranscriptionTaskResponse, TranscriptionTaskResultResponse, TaskStatus,
+    TaskStatus,
+    TranscriptionTaskResponse,
+    TranscriptionTaskResultResponse,
 )
 from app.util.io import save_audio_stream
 from app.util.tasks import generate_task_id
@@ -26,19 +33,7 @@ router = APIRouter(prefix="/transcribe", tags=["transcription"])
 
 
 def _validate_file_extension(file: UploadFile) -> None:
-    """
-    Raise a 400 if the uploaded file has an unsupported extension.
-
-    Parameters
-    ----------
-    file:
-        The ``UploadFile`` object received from FastAPI.
-
-    Raises
-    ------
-    HTTPException
-        400 Bad Request when the extension is not in the allowed set.
-    """
+    """Raise HTTP 400 if the uploaded file's extension is not supported."""
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in settings.ALLOWED_AUDIO_EXTENSIONS:
         raise HTTPException(
@@ -59,41 +54,19 @@ def _validate_file_extension(file: UploadFile) -> None:
     },
     summary="Submit an audio file for transcription",
     description=(
-        "Upload a **.mp3** or **.wav** file. The file is streamed to disk and a "
-        "transcription task is placed on the async queue. Returns a `task_id` "
-        "that can be used to poll for the result."
+            "Upload a **.mp3** or **.wav** file. The file is streamed to disk and a "
+            "transcription task is placed on the async queue. Returns a `task_id` "
+            "that can be used to poll for the result."
     ),
 )
 async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
-    """
-    Accept an audio file upload and enqueue it for transcription.
-
-    The file is streamed to disk in chunks to avoid loading it fully into
-    memory. The transcription itself is handled asynchronously by a worker —
-    use GET /transcribe/{task_id} to poll for the result.
-
-    Parameters
-    ----------
-    file : UploadFile
-        Multipart-encoded audio file (.mp3 or .wav).
-
-    Returns
-    -------
-    TranscriptionTaskResponse
-        Contains the `task_id` assigned to this transcription job.
-
-    Raises
-    ------
-    HTTPException
-        400 if the file type is unsupported or the file is empty.
-        500 if saving the file to disk fails.
-    """
+    """Stream the uploaded file to disk and enqueue a transcription job."""
     _validate_file_extension(file)
 
     if not file.size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Audio file cannot be empty"
+            detail="Audio file cannot be empty",
         )
 
     logger.info("Received transcription request | file={}", file.filename)
@@ -113,29 +86,21 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
     response_model=TranscriptionTaskResultResponse,
     summary="Get transcription task result",
     description=(
-            "'task_id' is used for pulling the result of the transcription task. "
-            "Possible task statuses: READY, QUEUED, FAILED. "
-            "If status READY, additional field, which contains transcribed information, is provided."
+            "Poll by `task_id`. Possible statuses: QUEUED, STARTED, READY, FAILED. "
+            "The `result` field is populated only when status is READY."
     ),
 )
 async def get_transcription_result(task_id: str) -> TranscriptionTaskResultResponse:
-    """
-    Returns current transcription task status.
-
-    If task is READY, returns transcription result.
-    """
+    """Return the current status of a transcription task, and its result if ready."""
     if not job_exists(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
 
     job_status = fetch_job_status(task_id)
-    if status != TaskStatus.READY:
-        return TranscriptionTaskResultResponse(
-            status=job_status,
-            result=None,
-        )
+
+    if job_status != TaskStatus.READY:
+        return TranscriptionTaskResultResponse(status=job_status, result=None)
 
     result = fetch_job_result(task_id)
-    return TranscriptionTaskResultResponse(
-        status=TaskStatus.READY,
-        result=result,
-    )
+    # Clean up immediately after fetch; TTL is a safety net, not the primary mechanism.
+    delete_job(task_id)
+    return TranscriptionTaskResultResponse(status=TaskStatus.READY, result=result)

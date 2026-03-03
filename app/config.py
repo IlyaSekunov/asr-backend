@@ -50,22 +50,21 @@ class Settings(BaseSettings):
     DENOISING_ENABLED: bool = True
     LOUDNESS_METHOD: LoudnessNormalization = LoudnessNormalization.LUFS
     LOUDNESS_NORMALIZATION_ENABLED: bool = True
-    LOUDNESS_TARGET: float = -23.0
+    LOUDNESS_TARGET: float = -23.0  # EBU R128 broadcast standard
     MODEL_SIZE: WhisperModelSize = WhisperModelSize.SMALL
     QUANTIZATION: Quantization = Quantization.INT8
-    TARGET_SAMPLE_RATE: int = 16_000
+    TARGET_SAMPLE_RATE: int = 16_000  # Whisper minimum required sample rate
     VAD_ENABLED: bool = True
 
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_QUEUE: str = "asr"
-    REDIS_QUEUE_RESULT_TTL: int = 300
-    REDIS_QUEUE_FAILURE_TTL: int = 300
-    TRANSCRIBE_FUNCTION_TASK_PATH: str = "app.asyncqueue.tasks.transcribe_task"
+    REDIS_QUEUE_RESULT_TTL: int = 300  # seconds to retain a successful result
+    REDIS_QUEUE_FAILURE_TTL: int = 300  # seconds to retain a failed job for inspection
 
     model_config = SettingsConfigDict(
-        env_file='.env',
+        env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
     )

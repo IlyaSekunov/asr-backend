@@ -1,3 +1,5 @@
+"""File I/O helpers for audio upload and loading."""
+
 import os
 from pathlib import Path
 
@@ -12,19 +14,17 @@ from app.config import settings
 
 async def save_audio_stream(file: UploadFile, task_id: str) -> str:
     """
-    Stream an uploaded audio file to disk without loading it fully into memory.
+    Stream an uploaded audio file to disk in 512 KB chunks.
 
-    Writes data in 512 KB chunks to a temporary file, then atomically renames
-    it to the final path. This ensures the worker never reads a partially
-    written file — it only sees the file after the rename completes.
+    Writes to a `.tmp` file first, then atomically renames it so the worker
+    never reads a partially written file.
 
     Parameters
     ----------
     file : UploadFile
         Incoming multipart file from FastAPI.
     task_id : str
-        Unique task identifier used as part of the final filename
-        to avoid collisions between concurrent uploads.
+        Appended to the filename to prevent collisions between concurrent uploads.
 
     Returns
     -------
@@ -34,8 +34,7 @@ async def save_audio_stream(file: UploadFile, task_id: str) -> str:
     Raises
     ------
     IOError
-        If writing fails for any reason. The temporary file is cleaned
-        up automatically before the exception is re-raised.
+        If writing fails. The temporary file is cleaned up before re-raising.
     """
     output_path = Path(settings.AUDIO_STORAGE_DIR)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -48,9 +47,6 @@ async def save_audio_stream(file: UploadFile, task_id: str) -> str:
         async with aiofiles.open(tmp_path, "wb") as f:
             while chunk := await file.read(512 * 1024):
                 await f.write(chunk)
-
-        # Atomic rename: the final path becomes visible to the worker
-        # only after the file is fully written.
         os.rename(tmp_path, final_path)
         return str(final_path.absolute())
 
@@ -62,39 +58,29 @@ async def save_audio_stream(file: UploadFile, task_id: str) -> str:
 
 def load_audio(file_path: str) -> np.ndarray:
     """
-    Decode raw audio bytes into a mono float32 numpy array.
-
-    The audio is resampled to ``settings.TARGET_SAMPLE_RATE`` automatically.
+    Load an audio file as a mono float32 array resampled to TARGET_SAMPLE_RATE.
 
     Parameters
     ----------
-    file_path:
-        Absolute path to the uploaded audio file (.mp3 or .wav).
+    file_path : str
+        Path to a .mp3 or .wav file.
 
     Returns
     -------
-    tuple[np.ndarray, int]
-        ``(audio, sample_rate)`` — mono float32 waveform and its sample rate.
+    np.ndarray
+        Mono float32 waveform.
     """
     audio, _ = librosa.load(file_path, sr=settings.TARGET_SAMPLE_RATE)
     return audio
 
 
 def delete_file(file_path: str) -> None:
-    """
-    Safely delete a temporary audio file, ignoring if it doesn't exist.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the file to delete.
-    """
+    """Delete a file, ignoring FileNotFoundError."""
     try:
         os.unlink(file_path)
     except FileNotFoundError:
-        # File already deleted or never created - this is fine
         pass
     except PermissionError as e:
-        logger.warning(f"Cannot delete file {file_path}: {e}")
+        logger.warning("Cannot delete file {}: {}", file_path, e)
     except Exception as e:
-        logger.error(f"Unexpected error deleting {file_path}: {e}")
+        logger.error("Unexpected error deleting {}: {}", file_path, e)

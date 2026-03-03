@@ -19,7 +19,7 @@ from app.config import settings
 
 
 def _configure_logging() -> None:
-    """Configure structured JSON logging via Loguru."""
+    """Configure Loguru: JSON in production, human-readable with colour in debug mode."""
     logger.remove()
     logger.add(
         sys.stdout,
@@ -28,23 +28,13 @@ def _configure_logging() -> None:
             "{time:YYYY-MM-DDTHH:mm:ss.SSSZ} | {level} | "
             "{name}:{function}:{line} | {message}"
         ),
-        serialize=not settings.DEBUG,  # JSON in production, human-readable locally
+        serialize=not settings.DEBUG,
         colorize=settings.DEBUG,
     )
 
 
 def create_app() -> FastAPI:
-    """
-    Assemble and return the FastAPI application.
-
-    Separating application creation from the module-level ``app`` object
-    makes unit-testing and future async lifespan hooks straightforward.
-
-    Returns
-    -------
-    FastAPI
-        Fully configured application instance.
-    """
+    """Assemble and return the FastAPI application."""
     _configure_logging()
 
     application = FastAPI(

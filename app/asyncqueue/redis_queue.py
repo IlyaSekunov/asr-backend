@@ -1,3 +1,5 @@
+"""Redis connection and RQ queue used by both the API and the worker."""
+
 from redis import Redis
 from rq import Queue
 

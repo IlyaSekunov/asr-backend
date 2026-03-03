@@ -1,14 +1,4 @@
-"""
-Audio denoising utilities for preprocessing pipeline.
-
-This module provides noise reduction functionality for audio signals using
-the noisereduce library. It implements both stationary (constant noise profile)
-and adaptive (non-stationary) noise reduction algorithms through the NoiseReducer
-class, which integrates with the AudioPreprocessor inheritance hierarchy.
-
-The module is configured via application settings and produces denoised audio
-suitable for downstream tasks like transcription or feature extraction.
-"""
+"""Noise reduction preprocessor backed by the noisereduce library."""
 
 import numpy as np
 import noisereduce as nr
@@ -19,20 +9,11 @@ from app.preprocessing.audio_preprocessor import AudioPreprocessor
 
 class NoiseReducer(AudioPreprocessor):
     """
-    Audio noise reduction processor that wraps the noisereduce library.
+    Removes background noise using stationary or adaptive noise reduction.
 
-    This preprocessor removes background noise from audio signals using
-    either stationary (constant noise profile) or adaptive (non-stationary)
-    noise reduction algorithms.
-
-    Attributes
-    ----------
-    sr : int
-        Target sample rate in Hz.
-    stationary : bool
-        If True, assumes constant noise profile; if False, uses adaptive model.
-    prop_decrease : float
-        Fraction of estimated noise energy to remove (0.0 to 1.0).
+      - Stationary:  assumes a constant noise profile throughout the clip.
+      - Adaptive:    re-estimates the noise profile over time; better for
+                     recordings where background noise changes (e.g. wind, crowd).
     """
 
     def __init__(
@@ -42,44 +23,22 @@ class NoiseReducer(AudioPreprocessor):
             prop_decrease: float = settings.DENOISE_PROP_DECREASE,
     ):
         """
-        Initialize the NoiseReducer with denoising parameters.
-
         Parameters
         ----------
-        sr : int, optional
-            Sample rate in Hz. Defaults to settings.TARGET_SAMPLE_RATE.
-        stationary : bool, optional
-            If True, use stationary noise reduction (constant noise profile).
-            If False, use adaptive noise reduction. Defaults to settings.DENOISE_STATIONARY.
-        prop_decrease : float, optional
-            Fraction of estimated noise energy to remove, between 0.0 and 1.0.
-            Higher values remove more noise but may affect signal quality.
-            Defaults to settings.DENOISE_PROP_DECREASE.
+        sr : int
+            Sample rate of the input audio.
+        stationary : bool
+            True for constant noise profile; False for adaptive estimation.
+        prop_decrease : float
+            Fraction of noise energy to remove [0.0, 1.0]. Higher values
+            remove more noise but risk introducing artefacts.
         """
         self.sr = sr
         self.stationary = stationary
         self.prop_decrease = prop_decrease
 
     def process(self, audio: np.ndarray) -> np.ndarray:
-        """
-        Apply noise reduction to an audio signal.
-
-        Parameters
-        ----------
-        audio : np.ndarray
-            Audio time series with values normalized to [-1.0, 1.0].
-            Typically produced by librosa.load().
-
-        Returns
-        -------
-        np.ndarray
-            Denoised audio signal with the same shape and dtype as input.
-
-        Examples
-        --------
-        >>> reducer = NoiseReducer(sr=16000, stationary=True)
-        >>> denoised_audio = reducer.process(noisy_audio)
-        """
+        """Apply noise reduction and return the denoised waveform."""
         return nr.reduce_noise(
             y=audio,
             sr=self.sr,
