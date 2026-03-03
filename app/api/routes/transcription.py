@@ -127,10 +127,10 @@ async def get_transcription_result(task_id: str) -> TranscriptionTaskResultRespo
     if not job_exists(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
 
-    status = fetch_job_status(task_id)
+    job_status = fetch_job_status(task_id)
     if status != TaskStatus.READY:
         return TranscriptionTaskResultResponse(
-            status=status,
+            status=job_status,
             result=None,
         )
 
