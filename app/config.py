@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_QUEUE: str = "asr"
+    REDIS_FAILED_JOBS_RETRY_COUNT: int = 3
     REDIS_QUEUE_RESULT_TTL: int = 300  # seconds to retain a successful result
     REDIS_QUEUE_FAILURE_TTL: int = 300  # seconds to retain a failed job for inspection
 

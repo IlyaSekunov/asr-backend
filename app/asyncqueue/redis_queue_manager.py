@@ -1,7 +1,7 @@
 """High-level helpers for enqueuing jobs and querying their state via RQ."""
 
 from rq.exceptions import NoSuchJobError
-from rq.job import Job, JobStatus
+from rq.job import Job, JobStatus, Retry
 
 from app.asyncqueue.redis_queue import redis_connection, redis_queue
 from app.config import settings
@@ -58,4 +58,5 @@ def enqueue_transcription_task(file_path: str, task_id: str) -> None:
         job_id=task_id,
         result_ttl=settings.REDIS_QUEUE_RESULT_TTL,
         failure_ttl=settings.REDIS_QUEUE_FAILURE_TTL,
+        retry=Retry(max=settings.REDIS_QUEUE_RETRY),
     )
