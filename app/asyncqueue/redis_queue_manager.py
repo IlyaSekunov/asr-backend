@@ -58,5 +58,6 @@ def enqueue_transcription_task(file_path: str, task_id: str) -> None:
         job_id=task_id,
         result_ttl=settings.REDIS_QUEUE_RESULT_TTL,
         failure_ttl=settings.REDIS_QUEUE_FAILURE_TTL,
-        retry=Retry(max=settings.REDIS_QUEUE_RETRY),
+        job_timeout=settings.REDIS_QUEUE_JOB_TIMEOUT,
+        retry=Retry(max=settings.REDIS_FAILED_JOBS_RETRY_COUNT),
     )

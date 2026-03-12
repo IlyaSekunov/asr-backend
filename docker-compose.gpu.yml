@@ -1,21 +1,9 @@
 services:
-  api:
-    build:
-      dockerfile: Dockerfile.gpu
-    environment:
-      - COMPUTE_DEVICE=cuda
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
   worker:
     build:
-      dockerfile: Dockerfile.gpu
-    command: rq worker asr
+      context: .
+      dockerfile: Dockerfile.worker.gpu
+    container_name: asr-worker-gpu
     environment:
       - COMPUTE_DEVICE=cuda
     deploy:

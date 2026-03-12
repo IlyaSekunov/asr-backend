@@ -1,12 +1,34 @@
+# Version control
+.git
+.gitignore
+
+# Python
 .venv
-notebooks
 __pycache__
 *.pyc
 *.pyo
 *.pyd
-.git
-.gitignore
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Docs and assets
+*.md
+assets/
+notebooks/
+
+# Tests
+tests/
+
+# Env and secrets
 .env
+
+# Logs and temp
 *.log
+logs/
+
+# ML artefacts (скачиваются в рантайме)
 models/
 .cache/

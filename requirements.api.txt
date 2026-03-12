@@ -1,0 +1,11 @@
+aiofiles==25.1.0
+fastapi==0.135.0
+loguru==0.7.3
+numpy==2.3.5
+psutil==7.2.2
+pydantic-settings==2.13.1
+pydantic==2.12.5
+python-multipart==0.0.22
+redis==5.0.1
+rq==1.15.1
+uvicorn==0.41.0

@@ -20,18 +20,26 @@ pythonenv.*
 *.swo
 *~
 .DS_Store
+Thumbs.db
 
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-*.db3
-*.sql
-
 # Logs
 logs/
 *.log
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# ML artefacts
+models/
+.cache/

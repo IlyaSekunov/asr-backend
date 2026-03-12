@@ -26,7 +26,7 @@ from app.schemas.transcription import (
     TranscriptionTaskResponse,
     TranscriptionTaskResultResponse,
 )
-from app.util.io import save_audio_stream
+from app.util.audio_upload import save_audio_stream
 from app.util.tasks import generate_task_id
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])

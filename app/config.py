@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # General
     ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".mp3", ".wav"})
     APP_TITLE: str = "Speech Processing API"
-    APP_VERSION: str = "1.1.0"
+    APP_VERSION: str = "1.1.1"
     AUDIO_STORAGE_DIR: str = "/shared/audio"
     DEBUG: bool = False
 
@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     REDIS_FAILED_JOBS_RETRY_COUNT: int = 3
     REDIS_QUEUE_RESULT_TTL: int = 300  # seconds to retain a successful result
     REDIS_QUEUE_FAILURE_TTL: int = 300  # seconds to retain a failed job for inspection
+    REDIS_QUEUE_JOB_TIMEOUT: int = 1200 # 20 min
 
     model_config = SettingsConfigDict(
         env_file=".env",

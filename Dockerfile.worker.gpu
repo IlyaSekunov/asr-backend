@@ -1,0 +1,31 @@
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    COMPUTE_DEVICE=cuda
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip ffmpeg libsndfile1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/bin/python
+
+COPY requirements.worker.txt .
+
+RUN python -m pip install --upgrade pip \
+    && python -m pip install torch \
+       --index-url https://download.pytorch.org/whl/cu121 \
+    && python -m pip install --no-cache-dir -r requirements.worker.txt
+
+COPY app ./app
+
+RUN useradd -m appuser \
+    && mkdir -p /shared/audio \
+    && chown -R appuser:appuser /app /shared
+
+USER appuser
+
+CMD ["python", "-m", "app.asyncqueue.worker"]

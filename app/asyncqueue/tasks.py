@@ -10,7 +10,7 @@ from loguru import logger
 
 from app.pipeline.asr_pipeline_factory import create_asr_pipeline
 from app.transcribers.transcription_result import TranscriptionResult
-from app.util.io import load_audio, delete_file
+from app.util.audio_io import load_audio, delete_file
 
 # Loaded once when the worker imports this module, then reused for every job.
 _asr_pipeline = create_asr_pipeline()

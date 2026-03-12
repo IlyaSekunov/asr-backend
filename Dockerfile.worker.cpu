@@ -1,0 +1,30 @@
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    COMPUTE_DEVICE=cpu
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.worker.txt .
+
+# Сначала CPU-only torch (~200 МБ вместо ~2.5 ГБ)
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir torch \
+       --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.worker.txt
+
+COPY app ./app
+
+RUN useradd -m appuser \
+    && mkdir -p /shared/audio \
+    && chown -R appuser:appuser /app /shared
+
+USER appuser
+
+CMD ["python", "-m", "app.asyncqueue.worker"]

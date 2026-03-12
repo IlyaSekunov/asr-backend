@@ -1,13 +1,10 @@
-"""File I/O helpers for audio upload and loading."""
+"""Audio upload helper — used by the API process only."""
 
 import os
 from pathlib import Path
 
 import aiofiles
-import librosa
-import numpy as np
 from fastapi import UploadFile
-from loguru import logger
 
 from app.config import settings
 
@@ -54,33 +51,3 @@ async def save_audio_stream(file: UploadFile, task_id: str) -> str:
         if tmp_path.exists():
             tmp_path.unlink()
         raise IOError(f"Failed to write audio file: {e}")
-
-
-def load_audio(file_path: str) -> np.ndarray:
-    """
-    Load an audio file as a mono float32 array resampled to TARGET_SAMPLE_RATE.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to a .mp3 or .wav file.
-
-    Returns
-    -------
-    np.ndarray
-        Mono float32 waveform.
-    """
-    audio, _ = librosa.load(file_path, sr=settings.TARGET_SAMPLE_RATE)
-    return audio
-
-
-def delete_file(file_path: str) -> None:
-    """Delete a file, ignoring FileNotFoundError."""
-    try:
-        os.unlink(file_path)
-    except FileNotFoundError:
-        pass
-    except PermissionError as e:
-        logger.warning("Cannot delete file {}: {}", file_path, e)
-    except Exception as e:
-        logger.error("Unexpected error deleting {}: {}", file_path, e)
