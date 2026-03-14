@@ -63,7 +63,11 @@ class Settings(BaseSettings):
     REDIS_FAILED_JOBS_RETRY_COUNT: int = 3
     REDIS_QUEUE_RESULT_TTL: int = 300  # seconds to retain a successful result
     REDIS_QUEUE_FAILURE_TTL: int = 300  # seconds to retain a failed job for inspection
-    REDIS_QUEUE_JOB_TIMEOUT: int = 1200 # 20 min
+    REDIS_QUEUE_JOB_TIMEOUT: int = 1200  # 20 min
+
+    # Metrics
+    METRICS_PORT: int = 9091  # Prometheus scrape port on the worker
+    METRICS_COLLECTION_INTERVAL: int = 15  # seconds between system-metrics samples
 
     model_config = SettingsConfigDict(
         env_file=".env",

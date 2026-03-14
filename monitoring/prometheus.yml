@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: asr
+
+scrape_configs:
+  - job_name: asr-worker
+    static_configs:
+      - targets:
+          - worker:9091
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: asr-worker

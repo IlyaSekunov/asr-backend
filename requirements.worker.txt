@@ -3,6 +3,9 @@ librosa==0.11.0
 loguru==0.7.3
 noisereduce==3.0.3
 numpy==2.3.5
+nvidia-ml-py3==7.352.0
+prometheus-client==0.21.1
+psutil==7.2.2
 pydantic-settings==2.13.1
 pydantic==2.12.5
 pyloudnorm==0.2.0

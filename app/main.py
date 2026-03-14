@@ -13,6 +13,8 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
+from prometheus_client import make_asgi_app
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.routes.transcription import router as transcription_router
 from app.config import settings
@@ -33,6 +35,22 @@ def _configure_logging() -> None:
     )
 
 
+def _mount_metrics(application: FastAPI) -> None:
+    """
+    Mount a /metrics endpoint and auto-instrument all HTTP routes.
+
+    The endpoint is served as a separate ASGI sub-application so that
+    Prometheus scrapes never appear in the FastAPI request metrics.
+    """
+    metrics_app = make_asgi_app()
+    application.mount("/metrics", metrics_app)
+
+    Instrumentator(
+        should_group_status_codes=False,
+        excluded_handlers=["/metrics", "/docs", "/openapi.json"],
+    ).instrument(application).expose(application, include_in_schema=False)
+
+
 def create_app() -> FastAPI:
     """Assemble and return the FastAPI application."""
     _configure_logging()
@@ -50,6 +68,7 @@ def create_app() -> FastAPI:
     )
 
     application.include_router(transcription_router, prefix="/api/v1")
+    _mount_metrics(application)
 
     logger.info(
         "Application created | title='{}' version={}",

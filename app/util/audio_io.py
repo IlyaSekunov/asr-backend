@@ -27,6 +27,11 @@ def load_audio(file_path: str) -> np.ndarray:
     return audio
 
 
+def get_audio_duration(audio: np.ndarray, sr: int = settings.TARGET_SAMPLE_RATE) -> float:
+    """Return the duration of a waveform in seconds."""
+    return len(audio) / sr
+
+
 def delete_file(file_path: str) -> None:
     """
     Delete a file, ignoring FileNotFoundError.

@@ -22,12 +22,15 @@ services:
       context: .
       dockerfile: Dockerfile.worker.cpu
     container_name: asr-worker-cpu
+    ports:
+      - "9091:9091"   # Prometheus metrics endpoint
     volumes:
       - audio_data:/shared/audio
     environment:
       - COMPUTE_DEVICE=cpu
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - METRICS_PORT=9091
     deploy:
       resources:
         limits:
@@ -41,5 +44,42 @@ services:
     container_name: asr-redis
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus
+    container_name: asr-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - worker
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    container_name: asr-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/asr_dashboard.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   audio_data:
+  prometheus_data:
+  grafana_data:
