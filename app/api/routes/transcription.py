@@ -69,15 +69,18 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
             detail="Audio file cannot be empty",
         )
 
-    logger.info("Received transcription request | file={}", file.filename)
+    logger.info("Received transcription request | file={} size={}", file.filename, file.size)
 
     task_id = generate_task_id()
     try:
         file_path = await save_audio_stream(file, task_id)
     except IOError as e:
+        logger.error("Failed to save audio file | file={} task_id={} error={}", file.filename, task_id, e)
         raise HTTPException(status_code=500, detail=str(e))
 
     enqueue_transcription_task(file_path, task_id)
+    logger.info("Task enqueued | task_id={} file={}", task_id, file.filename)
+
     return TranscriptionTaskResponse(task_id=task_id)
 
 
@@ -96,6 +99,11 @@ async def get_transcription_result(task_id: str) -> TranscriptionTaskResultRespo
         raise HTTPException(status_code=404, detail="Task not found")
 
     job_status = fetch_job_status(task_id)
+    logger.debug("Task polled | task_id={} status={}", task_id, job_status)
+
+    if job_status == TaskStatus.FAILED:
+        logger.warning("Task failed | task_id={}", task_id)
+        return TranscriptionTaskResultResponse(status=job_status, result=None)
 
     if job_status != TaskStatus.READY:
         return TranscriptionTaskResultResponse(status=job_status, result=None)
@@ -103,4 +111,11 @@ async def get_transcription_result(task_id: str) -> TranscriptionTaskResultRespo
     result = fetch_job_result(task_id)
     # Clean up immediately after fetch; TTL is a safety net, not the primary mechanism.
     delete_job(task_id)
+    logger.info(
+        "Task result fetched and cleaned up | task_id={} language={} confidence={:.2%}",
+        task_id,
+        result.language,
+        result.language_probability,
+    )
+
     return TranscriptionTaskResultResponse(status=TaskStatus.READY, result=result)

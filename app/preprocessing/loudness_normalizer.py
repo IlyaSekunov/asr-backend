@@ -70,7 +70,8 @@ class LoudnessNormalizer(AudioPreprocessor):
         current_loudness = meter.integrated_loudness(audio)
 
         if np.isnan(current_loudness) or current_loudness == -np.inf:
-            logger.info(
+            # Fallback is a deviation from expected behaviour — warn, not info.
+            logger.warning(
                 "Audio too quiet for LUFS measurement ({}); falling back to peak normalisation.",
                 current_loudness,
             )
