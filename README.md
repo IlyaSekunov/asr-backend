@@ -6,26 +6,6 @@ An asynchronous speech-to-text service built with FastAPI, Faster-Whisper, and R
 
 ## Architecture
 
-```
-Client
-  │
-  ▼
-FastAPI (api process)
-  │  validates and streams the uploaded file to shared storage
-  │  enqueues a job via RQ
-  ▼
-Redis
-  │  job picked up by worker
-  ▼
-RQ Worker (worker process)
-  │  loads audio → runs preprocessors → runs Whisper → stores result
-  ▼
-Redis (result stored with TTL)
-  │
-  ▼
-Client polls GET /api/v1/transcribe/{task_id}
-```
-
 ![ASR System Architecture](assets/asr_system.png)
 
 The API and worker run as **separate processes**. The Whisper model is loaded only in the worker, keeping the API process lightweight.
