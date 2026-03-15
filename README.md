@@ -105,6 +105,64 @@ curl http://localhost:8000/api/v1/transcribe/e3b0c442-98fc-4c14-9afb-ed8b1b3b0a1
 
 ---
 
+## Monitoring
+
+The service includes built-in observability via **Prometheus** and **Grafana**. Metrics are collected in the worker process and exposed on a dedicated HTTP endpoint.
+
+### Accessing dashboards
+
+| Service    | URL                        | Credentials  |
+|------------|----------------------------|--------------|
+| Grafana    | http://localhost:3000      | admin / admin |
+| Prometheus | http://localhost:9090      | —            |
+| Metrics    | http://localhost:9091      | —            |
+
+Grafana opens the ASR dashboard automatically on login. Prometheus targets status is available at `http://localhost:9090/targets` — the `asr-worker` target should show `UP`.
+
+### Collected metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `asr_transcription_success_total` | Counter | Total successfully transcribed files |
+| `asr_transcription_failure_total` | Counter | Total files that failed during transcription |
+| `asr_real_time_factor` | Histogram | RTF: processing time / audio duration. Values below 1.0 indicate faster-than-real-time |
+| `asr_audio_duration_minutes` | Histogram | Duration of processed audio files in minutes |
+| `asr_language_detections_total` | Counter | Transcription count per detected language |
+| `asr_worker_cpu_percent` | Gauge | Worker CPU utilisation, normalised to 0–100% |
+| `asr_worker_memory_bytes` | Gauge | Worker RSS memory usage in bytes |
+| `asr_worker_gpu_utilization_percent` | Gauge | GPU compute utilisation in percent (GPU build only) |
+| `asr_worker_gpu_memory_used_bytes` | Gauge | GPU memory in use (GPU build only) |
+| `asr_worker_gpu_memory_total_bytes` | Gauge | Total GPU memory available (GPU build only) |
+
+### Dashboard panels
+
+The Grafana dashboard is organised into four sections:
+
+**Overview** — five stat panels showing total successes, total failures, success rate (last 10 min), average RTF, and throughput per minute.
+
+**Performance** — RTF percentiles (P50/P90/P99) and audio duration percentiles over rolling windows.
+
+**Language distribution** — bar chart of the top 10 detected languages by total transcription count.
+
+**Worker system resources** — CPU utilisation, RSS memory, GPU compute utilisation, GPU memory usage, and a success/failure rate time series.
+
+### Architecture
+
+```
+Worker process
+  │  transcribe_task() records metrics on every job
+  │  system_collector daemon thread samples CPU/RAM/GPU every 15s
+  │  prometheus_client exposes /metrics on :9091
+  ▼
+Prometheus (scrapes :9091 every 15s)
+  ▼
+Grafana (queries Prometheus, auto-provisioned dashboard)
+```
+
+The Grafana image is built from `Dockerfile.grafana`, which bakes provisioning config and the dashboard JSON directly into the image — no bind mounts, no manual file copying required.
+
+---
+
 ## Configuration
 
 All settings are read from environment variables (or a `.env` file). Defaults are production-ready for CPU inference.
@@ -145,6 +203,13 @@ All settings are read from environment variables (or a `.env` file). Defaults ar
 | `REDIS_QUEUE_RESULT_TTL`       | `300`       | Seconds to retain a completed result in Redis            |
 | `REDIS_QUEUE_FAILURE_TTL`      | `300`       | Seconds to retain a failed job for inspection            |
 
+### Metrics
+
+| Variable                         | Default | Description                                       |
+|----------------------------------|---------|---------------------------------------------------|
+| `METRICS_PORT`                   | `9091`  | Prometheus scrape port on the worker              |
+| `METRICS_COLLECTION_INTERVAL`    | `15`    | Seconds between CPU/RAM/GPU samples               |
+
 ---
 
 ## Project structure
@@ -153,28 +218,49 @@ All settings are read from environment variables (or a `.env` file). Defaults ar
 app/
 ├── api/
 │   └── routes/
-│       └── transcription.py     # REST endpoints
+│       └── transcription.py          # REST endpoints
 ├── asyncqueue/
-│   ├── redis_queue.py           # Redis connection and RQ queue
-│   ├── redis_queue_manager.py   # Job lifecycle helpers
-│   ├── tasks.py                 # RQ task — runs in worker process only
-│   └── worker.py                # Worker entry point
+│   ├── redis_queue.py                # Redis connection and RQ queue
+│   ├── redis_queue_manager.py        # Job lifecycle helpers
+│   ├── tasks.py                      # RQ task — runs in worker process only
+│   └── worker.py                     # Worker entry point
+├── metrics/
+│   ├── metrics.py                    # Prometheus metric definitions
+│   └── system_collector.py          # Background CPU/RAM/GPU collector
 ├── pipeline/
-│   ├── asr_pipeline.py          # Chains preprocessors → transcriber
-│   └── asr_pipeline_factory.py  # Builds the pipeline from settings
+│   ├── asr_pipeline.py               # Chains preprocessors → transcriber
+│   └── asr_pipeline_factory.py       # Builds the pipeline from settings
 ├── preprocessing/
-│   ├── audio_preprocessor.py    # Abstract base class
-│   ├── loudness_normalizer.py   # LUFS / Peak / RMS normalisation
-│   └── noise_reducer.py         # Stationary and adaptive denoising
+│   ├── audio_preprocessor.py         # Abstract base class
+│   ├── loudness_normalizer.py        # LUFS / Peak / RMS normalisation
+│   └── noise_reducer.py              # Stationary and adaptive denoising
 ├── schemas/
-│   └── transcription.py         # Pydantic request/response models
+│   └── transcription.py              # Pydantic request/response models
 ├── transcribers/
-│   ├── audio_transcriber.py     # Abstract base class
-│   ├── transcription_result.py  # Immutable result dataclass
-│   └── whisper_transcriber.py   # Faster-Whisper implementation
+│   ├── audio_transcriber.py          # Abstract base class
+│   ├── transcription_result.py       # Immutable result dataclass
+│   └── whisper_transcriber.py        # Faster-Whisper implementation
 ├── util/
-│   ├── io.py                    # Audio file streaming and loading
-│   └── tasks.py                 # Task ID generation
-├── config.py                    # All settings (pydantic-settings)
-└── main.py                      # FastAPI app factory
+│   ├── audio_io.py                   # Audio file streaming and loading
+│   └── tasks.py                      # Task ID generation
+├── config.py                         # All settings (pydantic-settings)
+└── main.py                           # FastAPI app factory
+
+monitoring/
+├── prometheus.yml                    # Scrape config — target worker:9091
+└── grafana/
+    ├── provisioning/
+    │   ├── datasources/
+    │   │   └── prometheus.yaml       # Auto-provisioned Prometheus datasource
+    │   └── dashboards/
+    │       └── dashboards.yaml       # Dashboard discovery config
+    └── dashboards/
+        └── asr_dashboard.json        # ASR Grafana dashboard
+
+Dockerfile.api                        # API service image
+Dockerfile.worker.cpu                 # Worker image (CPU)
+Dockerfile.worker.gpu                 # Worker image (GPU)
+Dockerfile.grafana                    # Grafana image with baked-in config
+docker-compose.yml                    # All services including Prometheus and Grafana
+docker-compose.gpu.yml                # GPU overrides
 ```
