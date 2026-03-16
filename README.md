@@ -146,21 +146,6 @@ The Grafana dashboard is organised into four sections:
 
 **Worker system resources** — CPU utilisation, RSS memory, GPU compute utilisation, GPU memory usage, and a success/failure rate time series.
 
-### Architecture
-
-```
-Worker process
-  │  transcribe_task() records metrics on every job
-  │  system_collector daemon thread samples CPU/RAM/GPU every 15s
-  │  prometheus_client exposes /metrics on :9091
-  ▼
-Prometheus (scrapes :9091 every 15s)
-  ▼
-Grafana (queries Prometheus, auto-provisioned dashboard)
-```
-
-The Grafana image is built from `Dockerfile.grafana`, which bakes provisioning config and the dashboard JSON directly into the image — no bind mounts, no manual file copying required.
-
 ---
 
 ## Configuration
