@@ -245,7 +245,6 @@ monitoring/
 Dockerfile.api                        # API service image
 Dockerfile.worker.cpu                 # Worker image (CPU)
 Dockerfile.worker.gpu                 # Worker image (GPU)
-Dockerfile.grafana                    # Grafana image with baked-in config
 docker-compose.yml                    # All services including Prometheus and Grafana
 docker-compose.gpu.yml                # GPU overrides
 ```
