@@ -96,28 +96,40 @@ curl http://localhost:8000/api/v1/transcribe/e3b0c442-98fc-4c14-9afb-ed8b1b3b0a1
 
 **Task statuses**
 
-| Status    | Meaning                              |
-|-----------|--------------------------------------|
-| `QUEUED`  | Waiting in the queue                 |
-| `STARTED` | Worker is actively processing        |
+| Status    | Meaning                                  |
+|-----------|------------------------------------------|
+| `QUEUED`  | Waiting in the queue                     |
+| `STARTED` | Worker is actively processing            |
 | `READY`   | Transcription complete, result available |
-| `FAILED`  | Processing failed                    |
+| `FAILED`  | Processing failed                        |
 
 ---
 
 ## Monitoring
 
-The service includes built-in observability via **Prometheus** and **Grafana**. Metrics are collected in the worker process and exposed on a dedicated HTTP endpoint.
+The service includes built-in observability via **Prometheus**, **Grafana**, and **Loki**. Metrics are collected in the worker process and exposed on a dedicated HTTP endpoint. Logs from all containers are shipped to Loki via Promtail and are available alongside metrics in the same Grafana dashboard.
 
 ### Accessing dashboards
 
-| Service    | URL                        | Credentials  |
-|------------|----------------------------|--------------|
+| Service    | URL                        | Credentials   |
+|------------|----------------------------|---------------|
 | Grafana    | http://localhost:3000      | admin / admin |
-| Prometheus | http://localhost:9090      | —            |
-| Metrics    | http://localhost:9091      | —            |
+| Prometheus | http://localhost:9090      | —             |
+| Loki       | http://localhost:3100      | —             |
+| Metrics    | http://localhost:9091      | —             |
 
 Grafana opens the ASR dashboard automatically on login. Prometheus targets status is available at `http://localhost:9090/targets` — the `asr-worker` target should show `UP`.
+
+### Log collection
+
+Logs are collected by **Promtail**, which tails Docker container output via the Docker socket. Each log line is tagged with two labels derived from Docker metadata:
+
+- `service` — the Compose service name (`api`, `worker`, `redis`, …)
+- `level` — the log severity extracted from loguru's JSON output (`INFO`, `WARNING`, `ERROR`, …); present only for API and worker containers
+
+In production mode (`DEBUG=false`) loguru emits structured JSON, so `level` is always populated for application logs. Third-party containers (Redis, Prometheus) emit plain text — their logs are still collected but without the `level` label.
+
+Logs are retained in Loki for **7 days**.
 
 ### Collected metrics
 
@@ -136,7 +148,7 @@ Grafana opens the ASR dashboard automatically on login. Prometheus targets statu
 
 ### Dashboard panels
 
-The Grafana dashboard is organised into four sections:
+The Grafana dashboard is organised into five sections:
 
 **Overview** — five stat panels showing total successes, total failures, success rate (last 10 min), average RTF, and throughput per minute.
 
@@ -145,6 +157,10 @@ The Grafana dashboard is organised into four sections:
 **Language distribution** — bar chart of the top 10 detected languages by total transcription count.
 
 **Worker system resources** — CPU utilisation, RSS memory, GPU compute utilisation, GPU memory usage, and a success/failure rate time series.
+
+**Logs** — two log panels backed by Loki:
+- *Application Logs* — all entries from the `api` and `worker` services, newest first. Supports full-text search and label filtering directly in the panel.
+- *Errors & Warnings* — pre-filtered to `level=~"ERROR|WARNING"` across all services, for quick triage without scrolling through info-level noise.
 
 ---
 
@@ -164,11 +180,11 @@ All settings are read from environment variables (or a `.env` file). Defaults ar
 
 ### Loudness normalisation
 
-| Variable                       | Default     | Description                                              |
-|--------------------------------|-------------|----------------------------------------------------------|
-| `LOUDNESS_NORMALIZATION_ENABLED` | `true`    | Enable/disable loudness normalisation                    |
-| `LOUDNESS_METHOD`              | `lufs`      | `lufs`, `peak`, or `rms`                                 |
-| `LOUDNESS_TARGET`              | `-23.0`     | Target loudness in LUFS (EBU R128 broadcast standard)    |
+| Variable                         | Default     | Description                                              |
+|----------------------------------|-------------|----------------------------------------------------------|
+| `LOUDNESS_NORMALIZATION_ENABLED` | `true`      | Enable/disable loudness normalisation                    |
+| `LOUDNESS_METHOD`                | `lufs`      | `lufs`, `peak`, or `rms`                                 |
+| `LOUDNESS_TARGET`                | `-23.0`     | Target loudness in LUFS (EBU R128 broadcast standard)    |
 
 ### Noise reduction
 
@@ -233,10 +249,15 @@ app/
 
 monitoring/
 ├── prometheus.yml                    # Scrape config — target worker:9091
+├── loki/
+│   └── loki.yml                      # Loki storage and retention config
+├── promtail/
+│   └── promtail.yml                  # Log collection via Docker socket
 └── grafana/
     ├── provisioning/
     │   ├── datasources/
-    │   │   └── prometheus.yaml       # Auto-provisioned Prometheus datasource
+    │   │   ├── prometheus.yaml       # Auto-provisioned Prometheus datasource
+    │   │   └── loki.yaml             # Auto-provisioned Loki datasource
     │   └── dashboards/
     │       └── dashboards.yaml       # Dashboard discovery config
     └── dashboards/
@@ -245,6 +266,6 @@ monitoring/
 Dockerfile.api                        # API service image
 Dockerfile.worker.cpu                 # Worker image (CPU)
 Dockerfile.worker.gpu                 # Worker image (GPU)
-docker-compose.yml                    # All services including Prometheus and Grafana
+docker-compose.yml                    # All services including Prometheus, Grafana, Loki, Promtail
 docker-compose.gpu.yml                # GPU overrides
 ```

@@ -31,7 +31,7 @@
         "y": 0
       },
       "id": 100,
-      "title": "\ud83d\udcca Overview",
+      "title": "📊 Overview",
       "type": "row"
     },
     {
@@ -359,13 +359,13 @@
         "y": 5
       },
       "id": 101,
-      "title": "\u26a1 Performance",
+      "title": "⚡ Performance",
       "type": "row"
     },
     {
       "id": 6,
       "type": "timeseries",
-      "title": "Real Time Factor \u2014 Percentiles",
+      "title": "Real Time Factor — Percentiles",
       "description": "RTF < 1.0 = faster than real-time. P50/P90/P99 rolling over 5 min windows.",
       "gridPos": {
         "h": 9,
@@ -466,7 +466,7 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Audio Duration \u2014 Percentiles (minutes)",
+      "title": "Audio Duration — Percentiles (minutes)",
       "description": "Distribution of processed audio file lengths.",
       "gridPos": {
         "h": 9,
@@ -560,7 +560,7 @@
         "y": 15
       },
       "id": 102,
-      "title": "\ud83c\udf0d Language Distribution",
+      "title": "🌍 Language Distribution",
       "type": "row"
     },
     {
@@ -672,7 +672,7 @@
         "y": 26
       },
       "id": 103,
-      "title": "\ud83d\udda5\ufe0f Worker System Resources",
+      "title": "🖥️ Worker System Resources",
       "type": "row"
     },
     {
@@ -948,7 +948,7 @@
             "uid": "asr-prometheus"
           },
           "expr": "asr_worker_gpu_memory_used_bytes",
-          "legendFormat": "Used \u2014 {{device}}"
+          "legendFormat": "Used — {{device}}"
         },
         {
           "datasource": {
@@ -956,7 +956,7 @@
             "uid": "asr-prometheus"
           },
           "expr": "asr_worker_gpu_memory_total_bytes",
-          "legendFormat": "Total \u2014 {{device}}"
+          "legendFormat": "Total — {{device}}"
         }
       ]
     },
@@ -1065,6 +1065,92 @@
           },
           "expr": "rate(asr_transcription_failure_total[5m])",
           "legendFormat": "Failures/s"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 104,
+      "title": "📋 Logs",
+      "type": "row"
+    },
+    {
+      "id": 14,
+      "type": "logs",
+      "title": "Application Logs",
+      "description": "Structured logs from the API and worker containers. Filter by service or log level using the label selectors.",
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "asr-loki"
+      },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "asr-loki"
+          },
+          "expr": "{service=~\"api|worker\"}",
+          "queryType": "range",
+          "legendFormat": ""
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "logs",
+      "title": "Errors & Warnings",
+      "description": "Only ERROR and WARNING level log entries across all services.",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "asr-loki"
+      },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "asr-loki"
+          },
+          "expr": "{service=~\"api|worker\"} | level=~\"ERROR|WARNING\"",
+          "queryType": "range",
+          "legendFormat": ""
         }
       ]
     }
