@@ -19,6 +19,11 @@ Preprocessors are applied in this order before transcription:
 
 Either step can be disabled independently via environment variables.
 
+### Post-processing pipeline
+
+The base class `TextPostprocessor` (see `app/postprocessing/text_postprocessor.py`)
+defines the interface. The pipeline
+is designed so new steps can be added without touching existing code.
 ---
 
 ## Requirements
@@ -220,6 +225,8 @@ app/
 ├── pipeline/
 │   ├── asr_pipeline.py               # Chains preprocessors → transcriber
 │   └── asr_pipeline_factory.py       # Builds the pipeline from settings
+├── postprocessing/
+│   └── text_postprocessor.py         # Abstract base class for post-processing steps
 ├── preprocessing/
 │   ├── audio_preprocessor.py         # Abstract base class
 │   ├── loudness_normalizer.py        # LUFS / Peak / RMS normalisation

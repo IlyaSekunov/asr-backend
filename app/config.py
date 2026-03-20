@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # General
     ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".mp3", ".wav"})
     APP_TITLE: str = "Speech Processing API"
-    APP_VERSION: str = "2.1.0"
+    APP_VERSION: str = "2.1.1"
     AUDIO_STORAGE_DIR: str = "/shared/audio"
     DEBUG: bool = False
 
