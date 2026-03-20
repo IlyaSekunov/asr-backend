@@ -107,7 +107,7 @@ curl http://localhost:8000/api/v1/transcribe/e3b0c442-98fc-4c14-9afb-ed8b1b3b0a1
 
 ## Monitoring
 
-The service includes built-in observability via **Prometheus**, **Grafana**, and **Loki**. Metrics are collected in the worker process and exposed on a dedicated HTTP endpoint. Logs from all containers are shipped to Loki via Promtail and are available alongside metrics in the same Grafana dashboard.
+The service includes built-in observability via **Prometheus**, **Grafana**, and **Loki**. Metrics are collected in the worker process and exposed on a dedicated HTTP endpoint. Logs from all containers are shipped to Loki via **Grafana Alloy** and are available alongside metrics in the same Grafana dashboard.
 
 ### Accessing dashboards
 
@@ -119,17 +119,6 @@ The service includes built-in observability via **Prometheus**, **Grafana**, and
 | Metrics    | http://localhost:9091      | —             |
 
 Grafana opens the ASR dashboard automatically on login. Prometheus targets status is available at `http://localhost:9090/targets` — the `asr-worker` target should show `UP`.
-
-### Log collection
-
-Logs are collected by **Promtail**, which tails Docker container output via the Docker socket. Each log line is tagged with two labels derived from Docker metadata:
-
-- `service` — the Compose service name (`api`, `worker`, `redis`, …)
-- `level` — the log severity extracted from loguru's JSON output (`INFO`, `WARNING`, `ERROR`, …); present only for API and worker containers
-
-In production mode (`DEBUG=false`) loguru emits structured JSON, so `level` is always populated for application logs. Third-party containers (Redis, Prometheus) emit plain text — their logs are still collected but without the `level` label.
-
-Logs are retained in Loki for **7 days**.
 
 ### Collected metrics
 
@@ -251,8 +240,8 @@ monitoring/
 ├── prometheus.yml                    # Scrape config — target worker:9091
 ├── loki/
 │   └── loki.yml                      # Loki storage and retention config
-├── promtail/
-│   └── promtail.yml                  # Log collection via Docker socket
+├── alloy/
+│   └── config.alloy                  # Log collection via Docker socket (River syntax)
 └── grafana/
     ├── provisioning/
     │   ├── datasources/
@@ -266,6 +255,6 @@ monitoring/
 Dockerfile.api                        # API service image
 Dockerfile.worker.cpu                 # Worker image (CPU)
 Dockerfile.worker.gpu                 # Worker image (GPU)
-docker-compose.yml                    # All services including Prometheus, Grafana, Loki, Promtail
+docker-compose.yml                    # All services including Prometheus, Grafana, Loki, Alloy
 docker-compose.gpu.yml                # GPU overrides
 ```

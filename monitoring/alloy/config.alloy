@@ -1,0 +1,62 @@
+// ── Docker container discovery ────────────────────────────────────────────
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project"]
+  }
+}
+
+// ── Relabeling: extract container and service labels ──────────────────────
+
+discovery.relabel "docker_labels" {
+  targets = discovery.docker.containers.targets
+
+  // Strip the leading slash from the container name ("/" → "").
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+  }
+
+  // Expose the Compose service name as a label (api, worker, redis, …).
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+// ── Log processing: extract level from JSON log lines ────────────────────
+
+loki.process "extract_level" {
+  forward_to = [loki.write.default.receiver]
+
+  // In production (DEBUG=false) the app emits JSON lines via loguru.
+  // Extract the "level" field as a label so logs can be filtered by severity.
+  // Non-JSON lines (e.g. from Redis / Prometheus) are passed through unchanged.
+  stage.json {
+    expressions = { level = "level" }
+  }
+
+  stage.labels {
+    values = { level = null }
+  }
+}
+
+// ── Docker log source ─────────────────────────────────────────────────────
+
+loki.source.docker "docker_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.docker_labels.output
+  forward_to = [loki.process.extract_level.receiver]
+}
+
+// ── Loki write endpoint ───────────────────────────────────────────────────
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
