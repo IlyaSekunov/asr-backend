@@ -26,7 +26,7 @@ from app.schemas.transcription import (
     TranscriptionTaskResponse,
     TranscriptionTaskResultResponse,
 )
-from app.util.audio_upload import save_audio_stream
+from app.util.audio_upload import save_audio_stream, validate_file_size_header
 from app.util.tasks import generate_task_id
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
@@ -45,37 +45,56 @@ def _validate_file_extension(file: UploadFile) -> None:
         )
 
 
+def _validate_file_not_empty(file: UploadFile) -> None:
+    """
+    Raise HTTP 400 if the client reports a zero-length file.
+
+    Only checked when Content-Length is present (file.size is not None).
+    A missing header is not treated as an error — size is enforced during
+    streaming instead.
+    """
+    if file.size is not None and file.size == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Audio file cannot be empty.",
+        )
+
+
 @router.post(
     "/",
     response_model=TranscriptionTaskResponse,
     responses={
         400: {"model": ErrorResponse, "description": "Invalid file type or empty file."},
+        413: {"model": ErrorResponse, "description": "File exceeds the maximum allowed size."},
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     summary="Submit an audio file for transcription",
     description=(
             "Upload a **.mp3** or **.wav** file. The file is streamed to disk and a "
             "transcription task is placed on the async queue. Returns a `task_id` "
-            "that can be used to poll for the result."
+            "that can be used to poll for the result. "
+            f"Maximum file size: **{settings.MAX_AUDIO_FILE_SIZE_MB} MB**."
     ),
 )
 async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
     """Stream the uploaded file to disk and enqueue a transcription job."""
     _validate_file_extension(file)
-
-    if not file.size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Audio file cannot be empty",
-        )
+    _validate_file_not_empty(file)
+    validate_file_size_header(file)  # fast-path: rejects oversized Content-Length early
 
     logger.info("Received transcription request | file={} size={}", file.filename, file.size)
 
     task_id = generate_task_id()
     try:
+        # Hard size limit is enforced inside save_audio_stream chunk-by-chunk.
         file_path = await save_audio_stream(file, task_id)
+    except HTTPException:
+        raise
     except IOError as e:
-        logger.error("Failed to save audio file | file={} task_id={} error={}", file.filename, task_id, e)
+        logger.error(
+            "Failed to save audio file | file={} task_id={} error={}",
+            file.filename, task_id, e,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
     enqueue_transcription_task(file_path, task_id)
