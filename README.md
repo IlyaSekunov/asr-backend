@@ -118,12 +118,12 @@ The service includes built-in observability via **Prometheus**, **Grafana**, and
 
 ### Accessing dashboards
 
-| Service    | URL                        | Credentials   |
-|------------|----------------------------|---------------|
-| Grafana    | http://localhost:3000      | admin / admin |
-| Prometheus | http://localhost:9090      | —             |
-| Loki       | http://localhost:3100      | —             |
-| Metrics    | http://localhost:9091      | —             |
+| Service    | URL                        |
+|------------|----------------------------|
+| Grafana    | http://localhost:3000      |
+| Prometheus | http://localhost:9090      |
+| Loki       | http://localhost:3100      |
+| Metrics    | http://localhost:9091      |
 
 Grafana opens the ASR dashboard automatically on login. Prometheus targets status is available at `http://localhost:9090/targets` — the `asr-worker` target should show `UP`.
 
