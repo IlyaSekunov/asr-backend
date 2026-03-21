@@ -112,6 +112,8 @@ curl http://localhost:8000/api/v1/transcribe/e3b0c442-98fc-4c14-9afb-ed8b1b3b0a1
 
 ## Monitoring
 
+![ASR System Monitoring](assets/asr_monitoring.png)
+
 The service includes built-in observability via **Prometheus**, **Grafana**, and **Loki**. Metrics are collected in the worker process and exposed on a dedicated HTTP endpoint. Logs from all containers are shipped to Loki via **Grafana Alloy** and are available alongside metrics in the same Grafana dashboard.
 
 ### Accessing dashboards
