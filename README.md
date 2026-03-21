@@ -10,7 +10,7 @@ An asynchronous speech-to-text service built with FastAPI, Faster-Whisper, and R
 
 The API and worker run as **separate processes**. The Whisper model is loaded only in the worker, keeping the API process lightweight.
 
-### Preprocessing pipeline
+### Pre-processing pipeline
 
 Preprocessors are applied in this order before transcription:
 
@@ -21,8 +21,7 @@ Either step can be disabled independently via environment variables.
 
 ### Post-processing pipeline
 
-The base class `TextPostprocessor` (see `app/postprocessing/text_postprocessor.py`)
-defines the interface. The pipeline
+The base class `TextPostprocessor` defines the interface. The pipeline
 is designed so new steps can be added without touching existing code.
 ---
 
