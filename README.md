@@ -23,6 +23,7 @@ Either step can be disabled independently via environment variables.
 
 The base class `TextPostprocessor` defines the interface. The pipeline
 is designed so new steps can be added without touching existing code.
+
 ---
 
 ## Requirements
