@@ -11,9 +11,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from loguru import logger
+from rq.exceptions import NoSuchJobError
 
 from app.asyncqueue.redis_queue_manager import (
-    delete_job,
     enqueue_transcription_task,
     fetch_job_result,
     fetch_job_status,
@@ -80,13 +80,12 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
     """Stream the uploaded file to disk and enqueue a transcription job."""
     _validate_file_extension(file)
     _validate_file_not_empty(file)
-    validate_file_size_header(file)  # fast-path: rejects oversized Content-Length early
+    validate_file_size_header(file)
 
     logger.info("Received transcription request | file={} size={}", file.filename, file.size)
 
     task_id = generate_task_id()
     try:
-        # Hard size limit is enforced inside save_audio_stream chunk-by-chunk.
         file_path = await save_audio_stream(file, task_id)
     except HTTPException:
         raise
@@ -109,7 +108,8 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionTaskResponse:
     summary="Get transcription task result",
     description=(
             "Poll by `task_id`. Possible statuses: QUEUED, STARTED, READY, FAILED. "
-            "The `result` field is populated only when status is READY."
+            "The `result` field is populated only when status is READY. "
+            "The result remains available for repeated polling until the TTL expires."
     ),
 )
 async def get_transcription_result(task_id: str) -> TranscriptionTaskResultResponse:
@@ -117,21 +117,29 @@ async def get_transcription_result(task_id: str) -> TranscriptionTaskResultRespo
     if not job_exists(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
 
-    job_status = fetch_job_status(task_id)
-    logger.debug("Task polled | task_id={} status={}", task_id, job_status)
+    try:
+        job_status = fetch_job_status(task_id)
 
-    if job_status == TaskStatus.FAILED:
-        logger.warning("Task failed | task_id={}", task_id)
-        return TranscriptionTaskResultResponse(status=job_status, result=None)
+        logger.debug("Task polled | task_id={} status={}", task_id, job_status)
 
-    if job_status != TaskStatus.READY:
-        return TranscriptionTaskResultResponse(status=job_status, result=None)
+        if job_status == TaskStatus.FAILED:
+            logger.warning("Task failed | task_id={}", task_id)
+            return TranscriptionTaskResultResponse(status=job_status, result=None)
 
-    result = fetch_job_result(task_id)
-    # Clean up immediately after fetch; TTL is a safety net, not the primary mechanism.
-    delete_job(task_id)
+        if job_status != TaskStatus.READY:
+            return TranscriptionTaskResultResponse(status=job_status, result=None)
+
+        result = fetch_job_result(task_id)
+
+    except NoSuchJobError:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if result is None:
+        logger.warning("Job {} is READY but return_value() is None — retrying later", task_id)
+        return TranscriptionTaskResultResponse(status=TaskStatus.STARTED, result=None)
+
     logger.info(
-        "Task result fetched and cleaned up | task_id={} language={} confidence={:.2%}",
+        "Task result fetched | task_id={} language={} confidence={:.2%}",
         task_id,
         result.language,
         result.language_probability,
