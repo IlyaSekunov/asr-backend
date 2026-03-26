@@ -46,6 +46,17 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
 
 The API will be available at `http://localhost:8000`.
+The web interface will be available at `http://localhost:7860`.
+
+---
+
+## Web Interface
+
+A [Gradio](https://gradio.app) frontend is included for quick testing without Swagger or Postman.
+
+![ASR Frontend](assets/asr_frontend.png)
+
+Open `http://localhost:7860` in a browser. You can either upload an `.mp3` or `.wav` file, or record audio directly from the microphone. The interface polls the API automatically and displays the transcribed text along with the detected language and confidence score once the job is complete.
 
 ---
 
@@ -120,6 +131,7 @@ The service includes built-in observability via **Prometheus**, **Grafana**, and
 
 | Service    | URL                        |
 |------------|----------------------------|
+| Frontend   | http://localhost:7860      |
 | Grafana    | http://localhost:3000      |
 | Prometheus | http://localhost:9090      |
 | Loki       | http://localhost:3100      |
@@ -212,58 +224,63 @@ All settings are read from environment variables (or a `.env` file). Defaults ar
 ## Project structure
 
 ```
-app/
-├── api/
-│   └── routes/
-│       └── transcription.py          # REST endpoints
-├── asyncqueue/
-│   ├── redis_queue.py                # Redis connection and RQ queue
-│   ├── redis_queue_manager.py        # Job lifecycle helpers
-│   ├── tasks.py                      # RQ task — runs in worker process only
-│   └── worker.py                     # Worker entry point
-├── metrics/
-│   ├── metrics.py                    # Prometheus metric definitions
-│   └── system_collector.py          # Background CPU/RAM/GPU collector
-├── pipeline/
-│   ├── asr_pipeline.py               # Chains preprocessors → transcriber
-│   └── asr_pipeline_factory.py       # Builds the pipeline from settings
-├── postprocessing/
-│   └── text_postprocessor.py         # Abstract base class for post-processing steps
-├── preprocessing/
-│   ├── audio_preprocessor.py         # Abstract base class
-│   ├── loudness_normalizer.py        # LUFS / Peak / RMS normalisation
-│   └── noise_reducer.py              # Stationary and adaptive denoising
-├── schemas/
-│   └── transcription.py              # Pydantic request/response models
-├── transcribers/
-│   ├── audio_transcriber.py          # Abstract base class
-│   ├── transcription_result.py       # Immutable result dataclass
-│   └── whisper_transcriber.py        # Faster-Whisper implementation
-├── util/
-│   ├── audio_io.py                   # Audio file streaming and loading
-│   └── tasks.py                      # Task ID generation
-├── config.py                         # All settings (pydantic-settings)
-└── main.py                           # FastAPI app factory
-
-monitoring/
-├── prometheus.yml                    # Scrape config — target worker:9091
-├── loki/
-│   └── loki.yml                      # Loki storage and retention config
-├── alloy/
-│   └── config.alloy                  # Log collection via Docker socket (River syntax)
-└── grafana/
-    ├── provisioning/
-    │   ├── datasources/
-    │   │   ├── prometheus.yaml       # Auto-provisioned Prometheus datasource
-    │   │   └── loki.yaml             # Auto-provisioned Loki datasource
-    │   └── dashboards/
-    │       └── dashboards.yaml       # Dashboard discovery config
-    └── dashboards/
-        └── asr_dashboard.json        # ASR Grafana dashboard
-
-Dockerfile.api                        # API service image
-Dockerfile.worker.cpu                 # Worker image (CPU)
-Dockerfile.worker.gpu                 # Worker image (GPU)
-docker-compose.yml                    # All services including Prometheus, Grafana, Loki, Alloy
-docker-compose.gpu.yml                # GPU overrides
+.
+├── app/
+│   ├── api/
+│   │   └── routes/
+│   │       └── transcription.py          # REST endpoints
+│   ├── asyncqueue/
+│   │   ├── redis_queue.py                # Redis connection and RQ queue
+│   │   ├── redis_queue_manager.py        # Job lifecycle helpers
+│   │   ├── tasks.py                      # RQ task — runs in worker process only
+│   │   └── worker.py                     # Worker entry point
+│   ├── metrics/
+│   │   ├── metrics.py                    # Prometheus metric definitions
+│   │   └── system_collector.py           # Background CPU/RAM/GPU collector
+│   ├── pipeline/
+│   │   ├── asr_pipeline.py               # Chains preprocessors → transcriber
+│   │   └── asr_pipeline_factory.py       # Builds the pipeline from settings
+│   ├── postprocessing/
+│   │   └── text_postprocessor.py         # Abstract base class for post-processing steps
+│   ├── preprocessing/
+│   │   ├── audio_preprocessor.py         # Abstract base class
+│   │   ├── loudness_normalizer.py         # LUFS / Peak / RMS normalisation
+│   │   └── noise_reducer.py              # Stationary and adaptive denoising
+│   ├── schemas/
+│   │   └── transcription.py              # Pydantic request/response models
+│   ├── transcribers/
+│   │   ├── audio_transcriber.py          # Abstract base class
+│   │   ├── transcription_result.py       # Immutable result dataclass
+│   │   └── whisper_transcriber.py        # Faster-Whisper implementation
+│   ├── util/
+│   │   ├── audio_io.py                   # Audio file streaming and loading
+│   │   └── tasks.py                      # Task ID generation
+│   ├── config.py                         # All settings (pydantic-settings)
+│   └── main.py                           # FastAPI app factory
+├── frontend/
+│   ├── app.py                            # Gradio web interface
+│   ├── requirements.txt                  # Frontend dependencies
+│   └── Dockerfile                        # Frontend image
+├── monitoring/
+│   ├── prometheus.yml                    # Scrape config — target worker:9091
+│   ├── loki/
+│   │   └── loki.yml                      # Loki storage and retention config
+│   ├── alloy/
+│   │   └── config.alloy                  # Log collection via Docker socket
+│   └── grafana/
+│       ├── provisioning/
+│       │   ├── datasources/
+│       │   │   ├── prometheus.yaml       # Auto-provisioned Prometheus datasource
+│       │   │   └── loki.yaml             # Auto-provisioned Loki datasource
+│       │   └── dashboards/
+│       │       └── dashboards.yaml       # Dashboard discovery config
+│       └── dashboards/
+│           └── asr_dashboard.json        # ASR Grafana dashboard
+├── Dockerfile.api                        # API service image
+├── Dockerfile.worker.cpu                 # Worker image (CPU)
+├── Dockerfile.worker.gpu                 # Worker image (GPU)
+├── docker-compose.yml                    # All services
+├── docker-compose.gpu.yml                # GPU overrides
+├── requirements.api.txt                  # API dependencies
+└── requirements.worker.txt               # Worker dependencies
 ```

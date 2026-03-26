@@ -39,6 +39,16 @@ services:
       - redis
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: asr-frontend
+    ports:
+      - "7860:7860"
+    depends_on:
+      - api
+    restart: unless-stopped
+
   redis:
     image: redis
     container_name: asr-redis

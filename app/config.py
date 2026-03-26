@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # General
     ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".mp3", ".wav"})
     APP_TITLE: str = "Speech Processing API"
-    APP_VERSION: str = "2.2.3"
+    APP_VERSION: str = "3.0.0"
     AUDIO_STORAGE_DIR: str = "/shared/audio"
     DEBUG: bool = False
     MAX_AUDIO_FILE_SIZE_MB: int = 500  # Hard upper limit for uploaded audio files
