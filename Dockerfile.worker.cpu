@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.worker.txt .
+COPY requirements.common.txt requirements.worker.txt .
 
 # Сначала CPU-only torch (~200 МБ вместо ~2.5 ГБ)
 RUN pip install --upgrade pip \
