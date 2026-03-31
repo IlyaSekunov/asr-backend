@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from prometheus_client import make_asgi_app
 from prometheus_fastapi_instrumentator import Instrumentator
+from rq_dashboard_fast import RedisQueueDashboard
 
 from app.api.routes.transcription import router as transcription_router
 from app.config import settings
@@ -51,6 +52,17 @@ def _mount_metrics(application: FastAPI) -> None:
     ).instrument(application).expose(application, include_in_schema=False)
 
 
+def _mount_rq_dashboard(application: FastAPI) -> None:
+    """
+    Mount a /rq endpoint for RQ dashboard.
+    """
+    dashboard = RedisQueueDashboard(
+        redis_url=f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/",
+        prefix="/rq",
+    )
+    application.mount("/rq", dashboard)
+
+
 def create_app() -> FastAPI:
     """Assemble and return the FastAPI application."""
     _configure_logging()
@@ -69,6 +81,7 @@ def create_app() -> FastAPI:
 
     application.include_router(transcription_router, prefix="/api/v1")
     _mount_metrics(application)
+    _mount_rq_dashboard(application)
 
     logger.info(
         "Application created | title='{}' version={}",
