@@ -282,5 +282,6 @@ All settings are read from environment variables (or a `.env` file). Defaults ar
 ├── docker-compose.yml                    # All services
 ├── docker-compose.gpu.yml                # GPU overrides
 ├── requirements.api.txt                  # API dependencies
+├── requirements.common.txt               # API & Worker dependencies
 └── requirements.worker.txt               # Worker dependencies
 ```
