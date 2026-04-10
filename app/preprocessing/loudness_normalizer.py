@@ -66,8 +66,7 @@ class LoudnessNormalizer(AudioPreprocessor):
         Falls back to peak normalisation when the signal is too quiet for a
         reliable LUFS measurement (returns -inf or NaN).
         """
-        meter = pyln.Meter(self.sr)
-        current_loudness = meter.integrated_loudness(audio)
+        current_loudness = self.measure_loudness(audio)
 
         if np.isnan(current_loudness) or current_loudness == -np.inf:
             # Fallback is a deviation from expected behaviour — warn, not info.

@@ -9,7 +9,7 @@ class TextPostprocessor(ABC):
     """
     Interface for a single transcription post-processing step.
 
-    Implementations receive a :class:`~app.transcribers.transcription_result.TranscriptionResult`
+    Implementations receive a :class:`TranscriptionResult`
     and must return a new instance with the processed text.
     Metadata fields — ``language`` and ``language_probability`` — should be
     preserved unless the transformation explicitly changes them (e.g. a
