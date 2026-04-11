@@ -7,6 +7,7 @@ from typing import List
 import numpy as np
 from loguru import logger
 
+from app.postprocessing.text_postprocessor import TextPostprocessor
 from app.preprocessing.audio_preprocessor import AudioPreprocessor
 from app.transcribers.audio_transcriber import AudioTranscriber
 from app.transcribers.transcription_result import TranscriptionResult
@@ -23,14 +24,17 @@ class AsrPipeline:
     def __init__(
             self,
             preprocessors: List[AudioPreprocessor],
+            postprocessors: List[TextPostprocessor],
             transcriber: AudioTranscriber,
     ):
         self.preprocessors = preprocessors
+        self.postprocessors = postprocessors
         self.transcriber = transcriber
 
         logger.debug(
-            "Initialized AsrPipeline | preprocessors={} transcriber={}",
+            "Initialized AsrPipeline | preprocessors={} | postprocessors={} | transcriber={}",
             len(preprocessors),
+            len(postprocessors),
             type(transcriber).__name__,
         )
 
@@ -63,6 +67,9 @@ class AsrPipeline:
             current_audio = preprocessor.process(current_audio)
 
         result = self.transcriber.transcribe(current_audio)
+
+        for postprocessor in self.postprocessors:
+            result = postprocessor.process(result)
 
         # Only append "..." when the text was actually truncated.
         preview = result.text[:100] + ("..." if len(result.text) > 100 else "")

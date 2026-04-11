@@ -25,12 +25,19 @@ def _configure_preprocessors() -> List[AudioPreprocessor]:
     return preprocessors
 
 
+def _configure_postprocessors() -> List[AudioPreprocessor]:
+    """Return the ordered list of postprocessors based on current settings."""
+    postprocessors = []
+    return postprocessors
+
+
 def create_asr_pipeline() -> AsrPipeline:
     """Build and return a fully initialised ASR pipeline."""
     logger.info("Initializing ASR pipeline")
 
     pipeline = AsrPipeline(
         preprocessors=_configure_preprocessors(),
+        postprocessors=_configure_postprocessors(),
         transcriber=WhisperTranscriber(),
     )
 
