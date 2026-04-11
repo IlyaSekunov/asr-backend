@@ -16,11 +16,11 @@ def _configure_preprocessors() -> List[AudioPreprocessor]:
     """Return the ordered list of preprocessors based on current settings."""
     preprocessors = []
 
-    if settings.LOUDNESS_NORMALIZATION_ENABLED:
-        preprocessors.append(LoudnessNormalizer())
-
     if settings.DENOISING_ENABLED:
         preprocessors.append(NoiseReducer())
+
+    if settings.LOUDNESS_NORMALIZATION_ENABLED:
+        preprocessors.append(LoudnessNormalizer())
 
     return preprocessors
 
