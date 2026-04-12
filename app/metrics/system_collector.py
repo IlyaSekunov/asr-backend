@@ -64,7 +64,7 @@ def _collect_loop(
     while True:
         time.sleep(interval)
 
-        # ── CPU & memory ──────────────────────────────────────────────────
+        # CPU & Memory
         try:
             # psutil returns per-core sum (e.g. 260% on 4 cores).
             # Dividing by cpu_count normalises to 0–100% of total CPU.
@@ -74,7 +74,7 @@ def _collect_loop(
         except Exception as exc:
             logger.warning("CPU/memory metric collection error: {}", exc)
 
-        # ── GPU ───────────────────────────────────────────────────────────
+        # GPU
         for idx in range(gpu_count):
             label = f"gpu{idx}"
             try:

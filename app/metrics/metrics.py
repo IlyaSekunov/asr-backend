@@ -6,7 +6,7 @@ module and the system collector without circular dependencies.
 
 from prometheus_client import Counter, Gauge, Histogram
 
-# ── Transcription outcomes ─────────────────────────────────────────────────
+# Transcription outcomes
 
 transcription_success_total = Counter(
     "asr_transcription_success_total",
@@ -18,7 +18,7 @@ transcription_failure_total = Counter(
     "Total number of audio files that failed during transcription.",
 )
 
-# ── Audio characteristics ──────────────────────────────────────────────────
+# Audio characteristics
 
 audio_duration_minutes = Histogram(
     "asr_audio_duration_minutes",
@@ -32,7 +32,7 @@ language_detections_total = Counter(
     labelnames=["language"],
 )
 
-# ── Performance ────────────────────────────────────────────────────────────
+# Performance
 
 real_time_factor = Histogram(
     "asr_real_time_factor",
@@ -41,7 +41,7 @@ real_time_factor = Histogram(
     buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 5.0, 10.0],
 )
 
-# ── Worker system resources ────────────────────────────────────────────────
+# Worker system resources
 
 worker_cpu_percent = Gauge(
     "asr_worker_cpu_percent",
