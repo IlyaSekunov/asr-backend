@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker.gpu
+    image: asr-worker-gpu
     container_name: asr-worker-gpu
     environment:
       - COMPUTE_DEVICE=cuda
