@@ -1,4 +1,4 @@
-// ── Docker container discovery ────────────────────────────────────────────
+// Docker container discovery
 
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
@@ -9,7 +9,7 @@ discovery.docker "containers" {
   }
 }
 
-// ── Relabeling: extract container and service labels ──────────────────────
+// Relabeling: extract container and service labels
 
 discovery.relabel "docker_labels" {
   targets = discovery.docker.containers.targets
@@ -28,7 +28,7 @@ discovery.relabel "docker_labels" {
   }
 }
 
-// ── Log processing: extract level from JSON log lines ────────────────────
+// Log processing: extract level from JSON log lines
 
 loki.process "extract_level" {
   forward_to = [loki.write.default.receiver]
@@ -45,7 +45,7 @@ loki.process "extract_level" {
   }
 }
 
-// ── Docker log source ─────────────────────────────────────────────────────
+// Docker log source
 
 loki.source.docker "docker_logs" {
   host       = "unix:///var/run/docker.sock"
@@ -53,7 +53,7 @@ loki.source.docker "docker_logs" {
   forward_to = [loki.process.extract_level.receiver]
 }
 
-// ── Loki write endpoint ───────────────────────────────────────────────────
+// Loki write endpoint
 
 loki.write "default" {
   endpoint {
